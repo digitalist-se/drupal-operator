@@ -13,7 +13,6 @@
         data:
           settings.php: |-
             <?php
-
             $databases['default']['default'] = array(
               'database' => 'drupal',
               'username' => 'drupal',
@@ -27,6 +26,7 @@
 
             $settings['hash_salt'] = '{{ hash_salt | default(lookup('password', '/dev/null chars=ascii_letters'), true) }}';
             $settings['trusted_host_patterns'] = ['{{ trusted_host_patterns | default('^.+$', true) }}'];
+            $config['locale.settings']['translation']['path'] = 'sites/default/files/translations';
 
   - name: Files PVC
     k8s:
@@ -37,12 +37,12 @@
           name: '{{ meta.name }}-files-pvc'
           namespace: '{{ meta.namespace }}'
         spec:
+          storageClassName: '{{ files_pvc | default("gp2") }}'
           accessModes:
-            - ReadWriteOnce
+            - '{{ files_accessmode | default("ReadWriteOnce")}}'
           resources:
             requests:
-              storage: '{{ files_pvc }}'
-
+              storage: '{{ files_pvc_size  | default("1Gi") }}'
   - name: Mariadb PVC
     k8s:
       definition:
@@ -52,11 +52,12 @@
           name: '{{ meta.name }}-db-pvc'
           namespace: '{{ meta.namespace }}'
         spec:
+          storageClassName: '{{ db_pvc | default("gp2") }}'
           accessModes:
             - ReadWriteOnce
           resources:
             requests:
-              storage: '{{ db_pvc }}'
+              storage: '{{ db_pvc_size  | default("1Gi") }}'
 
   - name: Drupal
     k8s:
@@ -78,7 +79,7 @@
             spec:
               containers:
               - name: drupal
-                image: "drupal:{{ version }}-apache"
+                image: '{{ drupal_image | default("drupal:8.7-apache")}}'
                 ports:
                   - containerPort: 80
                 livenessProbe:
