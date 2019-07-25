@@ -15,7 +15,7 @@ spec:
       serviceAccountName: drupal-operator
       containers:
         - name: drupal-operator
-          image: "8thom/drupal-operator:v0.0.1"
+          image: "digitalist/drupal-operator:v0.0.1"
           imagePullPolicy: "Always"
           env:
             - name: WATCH_NAMESPACE
