@@ -1,6 +1,14 @@
 # Drupal Operator
 
-This is a very early working POC for development of an drupal [Ansible operator](https://github.com/operator-framework/operator-sdk/blob/master/doc/proposals/ansible-operator.md), feedback is welcomed!
+This is a fork of <https://github.com/thom8/drupal-operator>.
+
+This fork adds some new settings and possibilities, too make it more granular in it's approach.  
+
+Three big differences:
+
+* MySQL and Drupal are not running in the same pod, this is because we want the possibility to scale up  drupal pods.
+* The variables db_pvc and files_pvc now has now meaning - now they variables for Storage classes, db_pvc_size and files_pvc_size are replacement of the old ones.
+* ReadWriteMany is supported on the Drupal node PVC, so that you can scale up.
 
 ## Install Operator
 
@@ -31,6 +39,11 @@ spec:
   files_pvc: aws-efs
   files_pvc_size: 1Gi
   files_accessmode: ReadWriteMany
+  drupal_extra_config: |
+    $conf['bar'] = 'foo';
+    $conf['foo'] = 'bar';
+  drupal_replicas: 2
+
 ```
 
 Save file as myexample.yaml, and then deploy it like: 
@@ -39,7 +52,7 @@ Save file as myexample.yaml, and then deploy it like:
 kubectl apply -f myexample.yaml
 ```
 
-This will automatically trigger the operator to run the ansible playbook and deploy a new Drupal :)
+This will automatically trigger the operator to run the ansible playbook and deploy a new Drupal, with 2 replicas.
 
 ## Expose Drupal in a load balancer
 
