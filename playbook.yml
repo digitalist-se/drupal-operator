@@ -1,6 +1,7 @@
 - hosts: localhost
   gather_facts: no
   vars:
+    - drupal_image_reg_secret: ''
     - drupal_replicas: 1
     - drupal_db: 'drupal'
     - drupal_db_username: 'drupal'
@@ -109,6 +110,8 @@
                   name: drupal-settings
                 - mountPath: /var/www/html/sites/default/files/
                   name: drupal-files
+              imagePullSecrets:
+                - name:  '{{ drupal_image_reg_secret }}'
               volumes:
               - name: drupal-settings
                 configMap:
