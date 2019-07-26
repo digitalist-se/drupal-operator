@@ -36,7 +36,6 @@ spec:
   type: production
   db_pvc_size: 1Gi
   files_pvc_size: 4Gi
-  files_accessmode: ReadWriteMany
   drupal_extra_config: |
     $conf['bar'] = 'foo';
     $conf['foo'] = 'bar';
