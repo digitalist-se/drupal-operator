@@ -2,6 +2,8 @@
 
 This is a fork of <https://github.com/thom8/drupal-operator>.
 
+This is still just a POC, and still needs to solve some tasks to make site installable (see Todo).
+
 This fork adds some new settings and possibilities, too make it more granular in it's approach.  
 
 Three big differences:
@@ -9,6 +11,12 @@ Three big differences:
 * MySQL and Drupal are not running in the same pod, this is because we want the possibility to scale up  drupal pods.
 * The variables db_pvc and files_pvc now has now meaning - now they variables for Storage classes, db_pvc_size and files_pvc_size are replacement of the old ones.
 * ReadWriteMany is supported on the Drupal node PVC, so that you can scale up.
+
+## Todo
+
+* Add a site install role so site could be installed (now, it just errors out, because when we have an existing settings.php in place, drupal thinks it is installed).
+* Import config with drush role.
+* Add the possibility to use config split
 
 ## Install Operator
 
