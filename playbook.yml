@@ -11,8 +11,8 @@
           name: '{{ meta.name }}-drupal-config'
           namespace: '{{ meta.namespace }}'
         data:
-          settings.php: |-
-            <?php
+          settings.php: |
+            {{ drupal_settings | default("<?php
             $databases['default']['default'] = array(
               'database' => 'drupal',
               'username' => 'drupal',
@@ -26,7 +26,7 @@
 
             $settings['hash_salt'] = '{{ hash_salt | default(lookup('password', '/dev/null chars=ascii_letters'), true) }}';
             $settings['trusted_host_patterns'] = ['{{ trusted_host_patterns | default('^.+$', true) }}'];
-            $config['locale.settings']['translation']['path'] = 'sites/default/files/translations';
+            $config['locale.settings']['translation']['path'] = 'sites/default/files/translations';") }}
 
   - name: Files PVC
     k8s:
