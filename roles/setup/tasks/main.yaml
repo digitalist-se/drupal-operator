@@ -88,6 +88,33 @@
                 persistentVolumeClaim:
                   claimName: '{{ meta.name }}-files-pvc'
 
+  - name: Drupal secrets
+    k8s:
+      definition:
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: '{{ meta.name }}.drupal-secrets'
+          namespace: '{{ meta.namespace }}'
+        type: Opaque
+        data:
+          db_database: '{{ drupal_db | b64encode }}'
+          db_password: '{{ drupal_db_pass | b64encode }}'
+          db_user: '{{ drupal_db_username | b64encode }}'
+          password: '{{ drupal_password | b64encode }}'
+          user: '{{ drupal_user | b64encode }}'
+
+  - name: Mariadb secrets
+    k8s:
+      definition:
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: '{{ meta.name }}.mariadb-secrets'
+          namespace: '{{ meta.namespace }}'
+        type: Opaque
+        data:
+          root_password: '{{ mysql_root_password | b64encode }}'
   - name: Mariadb
     k8s:
       definition:
@@ -113,13 +140,25 @@
                   - containerPort: 3306
                 env:
                   - name: MYSQL_DATABASE
-                    value: '{{ drupal_db }}'
+                    valueFrom:
+                      secretKeyRef:
+                        name: '{{ meta.name }}.drupal-secrets'
+                        key: db_database
                   - name: MYSQL_USER
-                    value: '{{ drupal_db_username }}'
+                    valueFrom:
+                      secretKeyRef:
+                        name: '{{ meta.name }}.drupal-secrets'
+                        key: db_user
                   - name: MYSQL_PASSWORD
-                    value: '{{ drupal_db_pass }}'
-                  - name: MYSQL_RANDOM_ROOT_PASSWORD
-                    value: "yes"
+                    valueFrom:
+                      secretKeyRef:
+                        name: '{{ meta.name }}.drupal-secrets'
+                        key: db_password
+                  - name: MYSQL_ROOT_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: '{{ meta.name }}.mariadb-secrets'
+                        key: root_password
                 volumeMounts:
                 - mountPath: /var/lib/mysql/
                   name: drupal-db
