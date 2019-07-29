@@ -1,0 +1,28 @@
+---
+   drupal_image_reg_secret: ''
+   drupal_replicas: 1
+   drupal_db: 'drupal'
+   drupal_db_username: 'drupal'
+   drupal_db_pass: 'drupal'
+   drupal_db_prefix: ''
+   drupal_db_port: '3306'
+   drupal_db_driver: 'mysql'
+   drupal_db_namespace: 'Drupal\\Core\\Database\\Driver\\mysql'
+   drupal_translation_path: 'sites/default/files/translations'
+   drupal_extra_config: ''
+   drupal_settings_php: |-
+          <?php
+          $databases['default']['default'] = array(
+            'database' => '{{ drupal_db }}',
+            'username' => '{{ drupal_db_username }}',
+            'password' => '{{ drupal_db_pass }}',
+            'prefix' => '{{ drupal_db_prefix }}',
+            'host' => '{{ meta.name }}-db',
+            'port' => '{{ drupal_db_port }}',
+            'namespace' => '{{ drupal_db_namespace }}',
+            'driver' => '{{ drupal_db_driver }}',
+          );
+          $settings['hash_salt'] = '{{ hash_salt | default(lookup('password', '/dev/null chars=ascii_letters'), true) }}';
+          $settings['trusted_host_patterns'] = ['{{ trusted_host_patterns | default('^.+$', true) }}'];
+          $config['locale.settings']['translation']['path'] = '{{ drupal_translation_path }}';
+          {{ drupal_extra_config }}
