@@ -1,9 +1,4 @@
-- hosts: localhost
-  gather_facts: no
-  vars_files:
-      - vars/main.yaml
-
-  tasks:
+---
   - name: Drupal Settings
     k8s:
       definition:
