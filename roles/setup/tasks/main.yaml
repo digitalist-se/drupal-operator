@@ -7,6 +7,9 @@
         metadata:
           name: '{{ meta.name }}-drupal-config'
           namespace: '{{ meta.namespace }}'
+          labels:
+            app: drupal
+            release: '{{ meta.name }}'
         data:
           settings.php: '{{ drupal_settings_php }}'
 
@@ -18,6 +21,9 @@
         metadata:
           name: '{{ meta.name }}-files-pvc'
           namespace: '{{ meta.namespace }}'
+          labels:
+            app: drupal
+            release: '{{ meta.name }}'
         spec:
           storageClassName: '{{ files_pvc | default("default") }}'
           accessModes:
@@ -34,6 +40,9 @@
         metadata:
           name: '{{ meta.name }}-db-pvc'
           namespace: '{{ meta.namespace }}'
+          labels:
+            app: mariadb
+            release: '{{ meta.name }}'
         spec:
           storageClassName: '{{ db_pvc | default("default") }}'
           accessModes:
@@ -59,6 +68,7 @@
             metadata:
               labels:
                 app: drupal
+                release: '{{ meta.name }}'
             spec:
               containers:
               - name: drupal
@@ -96,6 +106,9 @@
         metadata:
           name: '{{ meta.name }}.drupal-secrets'
           namespace: '{{ meta.namespace }}'
+          labels:
+            app: drupal
+            release: '{{ meta.name }}'
         type: Opaque
         data:
           db_database: '{{ drupal_db | b64encode }}'
@@ -112,6 +125,9 @@
         metadata:
           name: '{{ meta.name }}.mariadb-secrets'
           namespace: '{{ meta.namespace }}'
+          labels:
+            app: mariadb
+            release: '{{ meta.name }}'
         type: Opaque
         data:
           root_password: '{{ mysql_root_password | b64encode }}'
@@ -132,6 +148,7 @@
             metadata:
               labels:
                 app: mariadb
+                release: '{{ meta.name }}'
             spec:
               containers:
               - name: mariadb
@@ -175,6 +192,9 @@
         metadata:
           name: '{{ meta.name }}-db'
           namespace: '{{ meta.namespace }}'
+          labels:
+            app: mariadb
+            release: '{{ meta.name }}'
         spec:
           type: NodePort
           ports:
@@ -191,6 +211,9 @@
         metadata:
           name: '{{ meta.name }}-service'
           namespace: '{{ meta.namespace }}'
+          labels:
+            app: drupal
+            release: '{{ meta.name }}'
         spec:
           type: NodePort
           ports:
