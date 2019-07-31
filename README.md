@@ -29,6 +29,13 @@ kubectl apply -f deploy/
 
 If everything works out, a Drupal instance should have been created when you installed the operator.
 
+## Logs from operator
+
+Get you pod name, and you could get logs from the drupal operator, ansible or operator style logs are available.
+
+k logs -n drupal -f -c operator drupal-operator-randomstring
+k logs -n drupal -f -c ansible drupal-operator-randomstring
+
 ## Create another Drupal instance
 
 Once the operator is installed in a namespace you can create another `Drupal` resource.

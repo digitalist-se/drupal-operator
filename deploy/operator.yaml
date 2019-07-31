@@ -14,9 +14,25 @@ spec:
     spec:
       serviceAccountName: drupal-operator
       containers:
-        - name: drupal-operator
+        - name: ansible
+          command:
+          - /usr/local/bin/ao-logs
+          - /tmp/ansible-operator/runner
+          - stdout
+          # Replace this with the built image name
           image: "digitalist/drupal-operator:v0.0.1"
           imagePullPolicy: "Always"
+          volumeMounts:
+          - mountPath: /tmp/ansible-operator/runner
+            name: runner
+            readOnly: true
+        - name: operator
+          # Replace this with the built image name
+          image: "digitalist/drupal-operator:v0.0.1"
+          imagePullPolicy: "Always"
+          volumeMounts:
+          - mountPath: /tmp/ansible-operator/runner
+            name: runner
           env:
             - name: WATCH_NAMESPACE
               valueFrom:
@@ -28,3 +44,6 @@ spec:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "drupal-operator"
+      volumes:
+        - name: runner
+          emptyDir: {}

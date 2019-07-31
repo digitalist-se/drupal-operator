@@ -9,9 +9,27 @@
           namespace: '{{ meta.namespace }}'
           labels:
             app: drupal
-            release: '{{ meta.name }}'
+            site: '{{ meta.name }}'
         data:
           settings.php: '{{ drupal_settings_php }}'
+
+
+# Could be useful later
+  - name: Shared config
+    k8s:
+      definition:
+        kind: ConfigMap
+        apiVersion: v1
+        metadata:
+          name: '{{ meta.name }}-shared-config'
+          namespace: '{{ meta.namespace }}'
+          labels:
+            app: drupal
+            site: '{{ meta.name }}'
+        data:
+          meta-name: '{{ meta.name }}'
+          meta-namespace: '{{ meta.namespace }}'
+          db-host: '{{ meta.name }}-db'
 
   - name: Files PVC
     k8s:
@@ -23,7 +41,7 @@
           namespace: '{{ meta.namespace }}'
           labels:
             app: drupal
-            release: '{{ meta.name }}'
+            site: '{{ meta.name }}'
         spec:
           storageClassName: '{{ files_pvc | default("default") }}'
           accessModes:
@@ -42,7 +60,7 @@
           namespace: '{{ meta.namespace }}'
           labels:
             app: mariadb
-            release: '{{ meta.name }}'
+            site: '{{ meta.name }}'
         spec:
           storageClassName: '{{ db_pvc | default("default") }}'
           accessModes:
@@ -61,6 +79,11 @@
           namespace: '{{ meta.namespace }}'
         spec:
           replicas: '{{ drupal_replicas }}'
+          strategy:
+          rollingUpdate:
+            maxSurge: 0
+            maxUnavailable: 1
+          type: RollingUpdate
           selector:
             matchLabels:
               app: drupal
@@ -68,10 +91,38 @@
             metadata:
               labels:
                 app: drupal
-                release: '{{ meta.name }}'
+                site: '{{ meta.name }}'
             spec:
+              initContainers:
+              - name: init-db
+                image: busybox:1.28
+                command: ['sh', '-c', "until nslookup '{{ meta.name }}-db'; do echo waiting for '{{ meta.name }}-db'; sleep 2; done;"]
+              - name: init-check-pvc
+                image: busybox:1.28
+                command: ['sh', '-c', "until ls /var/www/html/sites/default/files/; do echo waiting for volume; sleep 2; done;"]
+                volumeMounts:
+                 - mountPath: /var/www/html/sites/default/files/
+                   name: drupal-files
+                volumes:
+                 - name: drupal-files
+                   persistentVolumeClaim:
+                     claimName: '{{ meta.name }}-files-pvc'
+              - name: drupal-init
+                imagePullPolicy: Always
+                image: '{{ drupal_image | default("drupal:8.7-apache")}}'
+                command: [ 'sh' , '-c' , 'chown www-data:www-data -R /var/www/html/sites/default/files && chmod -R 755 /var/www/html/sites/default/files' ]
+                volumeMounts:
+                - mountPath: /var/www/html/sites/default/files/
+                  name: drupal-files
+                imagePullSecrets:
+                - name:  '{{ drupal_image_reg_secret }}'
+                volumes:
+                - name: drupal-files
+                  persistentVolumeClaim:
+                    claimName: '{{ meta.name }}-files-pvc'
               containers:
               - name: drupal
+                imagePullPolicy: Always
                 image: '{{ drupal_image | default("drupal:8.7-apache")}}'
                 ports:
                   - containerPort: 80
@@ -84,7 +135,8 @@
                     port: 80
                   initialDelaySeconds: 30
                 volumeMounts:
-                - mountPath: /var/www/html/sites/default/
+                - mountPath: /var/www/html/sites/default/settings.php
+                  subPath: settings.php
                   name: drupal-settings
                 - mountPath: /var/www/html/sites/default/files/
                   name: drupal-files
@@ -108,7 +160,7 @@
           namespace: '{{ meta.namespace }}'
           labels:
             app: drupal
-            release: '{{ meta.name }}'
+            site: '{{ meta.name }}'
         type: Opaque
         data:
           db_database: '{{ drupal_db | b64encode }}'
@@ -127,7 +179,7 @@
           namespace: '{{ meta.namespace }}'
           labels:
             app: mariadb
-            release: '{{ meta.name }}'
+            site: '{{ meta.name }}'
         type: Opaque
         data:
           root_password: '{{ mysql_root_password | b64encode }}'
@@ -144,12 +196,18 @@
           selector:
             matchLabels:
               app: mariadb
+          strategy:
+            type: Recreate
           template:
             metadata:
               labels:
                 app: mariadb
-                release: '{{ meta.name }}'
+                site: '{{ meta.name }}'
             spec:
+              initContainers:
+              - name: init-db-system
+                image: busybox:1.28
+                command: ['sh', '-c', "until ls /var/lib/mysql'; do echo waiting for '{{ meta.name }}-db'; sleep 2; done;"]
               containers:
               - name: mariadb
                 image: "mariadb"
@@ -194,7 +252,7 @@
           namespace: '{{ meta.namespace }}'
           labels:
             app: mariadb
-            release: '{{ meta.name }}'
+            site: '{{ meta.name }}'
         spec:
           type: NodePort
           ports:
@@ -213,7 +271,7 @@
           namespace: '{{ meta.namespace }}'
           labels:
             app: drupal
-            release: '{{ meta.name }}'
+            site: '{{ meta.name }}'
         spec:
           type: NodePort
           ports:
