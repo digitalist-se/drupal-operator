@@ -115,8 +115,11 @@
               - name: drupal-init
                 imagePullPolicy: Always
                 image: '{{ drupal_image | default("drupal:8.7-apache")}}'
-                command: [ 'sh' , '-c' , 'chown www-data:www-data -R /var/www/html/sites/default/files && chmod -R 755 /var/www/html/sites/default/files' ]
+                command: [ 'bash' , '-c' , "'{{ drupal_init_task }}'" ]
                 volumeMounts:
+                - mountPath: /var/www/html/sites/default/settings.php
+                  subPath: settings.php
+                  name: drupal-settings
                 - mountPath: /var/www/html/sites/default/files/
                   name: drupal-files
                 imagePullSecrets:
