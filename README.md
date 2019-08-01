@@ -25,9 +25,13 @@ kubectl apply -f deploy/crds/drupal_v1alpha1_drupal_cr.yaml
 kubectl apply -f deploy/
 ```
 
-## Drupal installed
+## Install Drupal
 
-If everything works out, a Drupal instance should have been created when you installed the operator.
+If everything works out, you could install an example drupal installation with:
+
+```bash
+kubectl apply -f deploy/crds/drupal_v1alpha1_drupal_crd.yaml
+```
 
 ## Logs from operator
 

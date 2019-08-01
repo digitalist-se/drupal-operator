@@ -10,6 +10,7 @@
           labels:
             app: drupal
             site: '{{ meta.name }}'
+            drupal: '{{ meta.name }}'
         data:
           settings.php: '{{ drupal_settings_php }}'
 
@@ -26,6 +27,7 @@
           labels:
             app: drupal
             site: '{{ meta.name }}'
+            drupal: '{{ meta.name }}'
         data:
           meta-name: '{{ meta.name }}'
           meta-namespace: '{{ meta.namespace }}'
@@ -42,6 +44,7 @@
           labels:
             app: drupal
             site: '{{ meta.name }}'
+            drupal: '{{ meta.name }}'
         spec:
           storageClassName: '{{ files_pvc | default("default") }}'
           accessModes:
@@ -61,13 +64,14 @@
           labels:
             app: mariadb
             site: '{{ meta.name }}'
+            db: '{{ meta.name }}'
         spec:
           storageClassName: '{{ db_pvc | default("default") }}'
           accessModes:
             - ReadWriteOnce
           resources:
             requests:
-              storage: '{{ db_pvc_size  | default("1Gi") }}'
+              storage: '{{ db_pvc_size  | default("2Gi") }}'
 
   - name: Drupal
     k8s:
@@ -86,10 +90,11 @@
           type: RollingUpdate
           selector:
             matchLabels:
-              app: drupal
+              drupal: '{{ meta.name }}'
           template:
             metadata:
               labels:
+                drupal: '{{ meta.name }}'
                 app: drupal
                 site: '{{ meta.name }}'
             spec:
@@ -161,6 +166,7 @@
           labels:
             app: drupal
             site: '{{ meta.name }}'
+            drupal: '{{ meta.name }}'
         type: Opaque
         data:
           db_database: '{{ drupal_db | b64encode }}'
@@ -180,13 +186,14 @@
           labels:
             app: mariadb
             site: '{{ meta.name }}'
+            db: '{{ meta.name }}'
         type: Opaque
         data:
           root_password: '{{ mysql_root_password | b64encode }}'
   - name: Mariadb
     k8s:
       definition:
-        kind: Deployment
+        kind: StatefulSet
         apiVersion: apps/v1
         metadata:
           name: '{{ meta.name }}-db'
@@ -195,7 +202,7 @@
           replicas: 1
           selector:
             matchLabels:
-              app: mariadb
+              db: '{{ meta.name }}'
           strategy:
             type: Recreate
           template:
@@ -203,14 +210,11 @@
               labels:
                 app: mariadb
                 site: '{{ meta.name }}'
+                db: '{{ meta.name }}'
             spec:
-              initContainers:
-              - name: init-db-system
-                image: busybox:1.28
-                command: ['sh', '-c', "until ls /var/lib/mysql'; do echo waiting for '{{ meta.name }}-db'; sleep 2; done;"]
               containers:
               - name: mariadb
-                image: "mariadb"
+                image: "mariadb:10"
                 ports:
                   - containerPort: 3306
                 env:
@@ -259,7 +263,7 @@
             - port: 3306
               targetPort: 3306
           selector:
-            app: 'mariadb'
+            db: '{{ meta.name }}'
 
   - name: Drupal Service
     k8s:
@@ -278,4 +282,4 @@
             - port: 80
               targetPort: 80
           selector:
-            app: 'drupal'
+            drupal: '{{ meta.name }}'
