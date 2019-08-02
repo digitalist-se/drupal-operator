@@ -2,6 +2,8 @@
 
 This is a fork of <https://github.com/thom8/drupal-operator>.
 
+[TOC]
+
 This fork adds some new settings and possibilities, too make it more granular in it's approach.  
 
 ## Install Operator
