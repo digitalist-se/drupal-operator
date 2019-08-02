@@ -2,7 +2,7 @@
 
 This is a fork of <https://github.com/thom8/drupal-operator>.
 
-This fork adds some new settings and possibilities, too make it more granular in it's approach.  
+This fork adds some new settings and possibilities, too make it more granular in it's approach, and also adds the possibility to use images from private docker repositories.
 
 ## Install Operator
 
