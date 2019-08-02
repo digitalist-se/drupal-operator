@@ -1,6 +1,8 @@
-Documentation
+# Documentation
 
 For basic information, see [README.md](../README.md) in root directory.
+
+[TOC]
 
 ## Advanced examples
 
@@ -44,7 +46,7 @@ spec:
   drupal_image_reg_secret: my.private.registry
 ```
 
-In example 2 we are using a docker container from a private registry, and using the secret my.private.registry that we have added before in kubernetes.
+In example 2 we are using a docker container from a private registry, and using the secret my.private.registry that we have added before in Kubernetes.
 
 ## Expose Drupal in a load balancer
 
@@ -54,9 +56,9 @@ To get the name of our deployment, we could run:
 kubectl get deployments
 ```
 
-In the preinstalled case, we should see that the deployment is called `example-drupal-drupal`.
+If you deployed the example deployment, you should have a deployment called `example-drupal-drupal`.
 
-So to expose this deployment we will add 
+To expose this deployment externally (the Drupal operator already created a Node port service, so port 80 is already exposed internally) we could add:
 
 ```bash
 kubectl expose deployment example-drupal-drupal --type=LoadBalancer --name=example-drupal
@@ -70,4 +72,4 @@ And then run
 
 To get the LoadBalancer Ingress (external IP) of the site. 
 
-(if you have setup kubernetes on Amazon, your External IP could look like: a8997a521aeed11e98ddf062fdf637ee-122456455.eu-west-1.elb.amazonaws.com, and could take some minute or two to be available)
+Note: If you have setup Kubernetes on Amazon with kops, your External IP could look like: a8997a521aeed11e98ddf062fdf637ee-122456455.eu-west-1.elb.amazonaws.com, and could take some minute or two to be available. 
