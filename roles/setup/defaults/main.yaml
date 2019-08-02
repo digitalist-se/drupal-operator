@@ -1,5 +1,5 @@
 ---
-  drupal_init_task: 'date'
+  drupal_init_task: '&& echo -e "done"'
   mysql_root_password: root
   drupal_image_reg_secret: ''
   drupal_replicas: 1
