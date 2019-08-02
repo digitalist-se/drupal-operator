@@ -102,17 +102,7 @@
               - name: init-db
                 image: busybox:1.28
                 command: ['sh', '-c', "until nslookup '{{ meta.name }}-db'; do echo waiting for '{{ meta.name }}-db'; sleep 2; done;"]
-              # - name: init-check-pvc
-              #   image: busybox:1.28
-              #   command: ['sh', '-c', "until ls /var/www/html/sites/default/files/; do echo waiting for volume; sleep 2; done;"]
-              #   volumeMounts:
-              #    - mountPath: /var/www/html/sites/default/files/
-              #      name: drupal-files
-              #   volumes:
-              #    - name: drupal-files
-              #      persistentVolumeClaim:
-              #        claimName: '{{ meta.name }}-files-pvc'
-              - name: drupal-init
+              - name: init-drupal
                 imagePullPolicy: Always
                 image: '{{ drupal_image | default("drupal:8.7-apache")}}'
                 command: [ 'bash' , '-c' , "until ls /var/www/html/sites/default/files/; do echo waiting for volume; sleep 2; done; chown www-data:www-data -R /var/www/html/sites/default/files && chmod -R 755 /var/www/html/sites/default/files" ]
