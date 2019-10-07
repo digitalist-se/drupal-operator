@@ -264,7 +264,7 @@
         kind: Service
         apiVersion: v1
         metadata:
-          name: '{{ meta.name }}-service'
+          name: '{{ meta.name }}-nodeport'
           namespace: '{{ meta.namespace }}'
           labels:
             app: drupal
