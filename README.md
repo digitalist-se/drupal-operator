@@ -9,7 +9,7 @@ This fork adds some new settings and possibilities, too make it more granular in
 ## Install Operator
 
 ```bash
-kubectl apply -f deploy/crds/drupal_v1alpha1_drupal_cr.yaml
+kubectl apply -f deploy/crds/drupal_v1alpha1_drupal_crd.yaml
 kubectl apply -f deploy/
 ```
 
@@ -18,7 +18,7 @@ kubectl apply -f deploy/
 If everything works out, you could install an example Drupal installation with:
 
 ```bash
-kubectl apply -f deploy/crds/drupal_v1alpha1_drupal_crd.yaml
+kubectl apply -f deploy/crds/drupal_v1alpha1_drupal_cr.yaml
 ```
 
 ## Logs from operator
