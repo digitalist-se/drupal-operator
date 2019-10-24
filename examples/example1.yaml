@@ -11,4 +11,4 @@ spec:
   db_pvc_size: 2Gi
   files_pvc_size: 1Gi
   files_accessmode: ReadWriteOnce
-  drupal_replicas: 2
+  drupal_replicas: 1
