@@ -43,6 +43,8 @@ spec:
   tag: 8.7-apache # docker tag
   drupal_image: drupal:{{ tag }}
   type: production
+  db_pvc: microk8s-hostpath
+  files_pvc: microk8s-hostpath
   db_pvc_size: 1Gi
   files_pvc_size: 4Gi
   drupal_extra_config: |
