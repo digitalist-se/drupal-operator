@@ -2,8 +2,6 @@
 
 This is a fork of <https://github.com/thom8/drupal-operator>.
 
-This uses [microk8s](https://microk8s.io/) by default. To get it to work with another setup, you need to create (if it does not exist) a persistent  volume class, and change the file `deploy/crds/drupal_v1alpha1_drupal_crd.yaml` to use that pvc.
-
 [TOC]
 
 This fork adds some new settings and possibilities, too make it more granular in it's approach, and also adds the possibility to use images from private docker repositories.
@@ -17,11 +15,23 @@ kubectl apply -f deploy/
 
 ## Install Drupal
 
-If everything works out, you could install an example Drupal installation with:
+If everything works out, you could install an example Drupal installation, example for minikube and microk8s:
+
+### Minikube
 
 ```bash
-kubectl apply -f deploy/crds/drupal_v1alpha1_drupal_cr.yaml
+kubectl apply -f deploy/crds/micro8s-example.yaml
 ```
+
+Now you could reach your deployment with: `minikube service example-drupal-minikube-1-nodeport --url`
+
+### Microk8s
+
+```bash
+microk8s.kubectl apply -f deploy/crds/minikube-example.yaml
+```
+
+
 
 ## Logs from operator
 
