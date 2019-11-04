@@ -12,3 +12,6 @@ spec:
   files_pvc_size: 1Gi
   files_accessmode: ReadWriteOnce
   drupal_replicas: 1
+  drupal_extra_config: |
+    $conf['bar'] = 'foo';
+    $conf['foo'] = 'bar';
