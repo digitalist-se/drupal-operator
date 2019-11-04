@@ -1,0 +1,14 @@
+apiVersion: drupal.org/v1alpha1
+kind: Drupal
+metadata:
+  name: example-drupal
+spec:
+  tag: 8.7-apache # docker tag
+  drupal_image:  drupal:{{ tag }} # docker image - you could also set both tag and image here
+  type: production
+  db_pvc: standard
+  files_pvc: standard
+  db_pvc_size: 4Gi
+  files_pvc_size: 1Gi
+  files_accessmode: ReadWriteOnce
+
