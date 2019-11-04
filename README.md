@@ -17,10 +17,10 @@ kubectl apply -f deploy/
 
 If everything works out, you could install an example Drupal installation, example for minikube and microk8s:
 
-### Minikube
+###  Minikube
 
 ```bash
-kubectl apply -f deploy/crds/micro8s-example.yaml
+kubectl apply -f deploy/crds/minikube-example.yaml
 ```
 
 Now you could reach your deployment with: `minikube service example-drupal-minikube-1-nodeport --url`
@@ -28,7 +28,7 @@ Now you could reach your deployment with: `minikube service example-drupal-minik
 ### Microk8s
 
 ```bash
-microk8s.kubectl apply -f deploy/crds/minikube-example.yaml
+microk8s.kubectl apply -f deploy/crds/micro8s-example.yaml
 ```
 
 
