@@ -1,4 +1,4 @@
-FROM quay.io/operator-framework/ansible-operator:v0.8.2
+FROM quay.io/operator-framework/ansible-operator:v0.12.0
 
 COPY watches.yaml ${HOME}/watches.yaml
 COPY playbook.yaml ${HOME}/playbook.yaml

@@ -9,7 +9,7 @@ This fork adds some new settings and possibilities, too make it more granular in
 ## Install Operator
 
 ```bash
-kubectl apply -f deploy/crds/drupal_v1alpha1_drupal_crd.yaml
+kubectl apply -f deploy/crds/drupal_v1alpha2_drupal_crd.yaml
 kubectl apply -f deploy/
 ```
 
@@ -49,7 +49,7 @@ kubectl logs -n drupal -f -c ansible drupal-operator-randomstring
 Once the operator is installed in a namespace you can create another `Drupal` resource (this using microk8s)
 
 ```bash
-apiVersion: drupal.org/v1alpha1
+apiVersion: drupal.org/v1alpha2
 kind: Drupal
 metadata:
   name: myexample-drupal

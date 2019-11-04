@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 
 # rebuild operator
-operator-sdk build digitalist/drupal-operator:v0.0.1 
-docker push digitalist/drupal-operator:v0.0.1
+operator-sdk build digitalist/drupal-operator:v0.0.2
+docker push digitalist/drupal-operator:v0.0.2
 
 # redeploy operator
-kubectl delete -f deploy/ -n drupal
-kubectl delete -f deploy/crds/drupal_v1alpha1_drupal_cr.yaml -n drupal
-kubectl apply -f deploy/crds/drupal_v1alpha1_drupal_cr.yaml -n drupal
-kubectl apply -f deploy/ -n drupal
+microk8s.kubectl delete -f deploy/
+microk8s.kubectl delete -f deploy/crds/drupal_v1alpha2_drupal_crd.yaml
+microk8s.kubectl apply -f deploy/
