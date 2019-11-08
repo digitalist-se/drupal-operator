@@ -6,6 +6,9 @@ This is a fork of <https://github.com/thom8/drupal-operator>.
 
 This fork adds some new settings and possibilities, too make it more granular in it's approach, and also adds the possibility to use images from private docker repositories.
 
+## Prerequisites
+To work with this operator you need a Kubernetes cluster. Working with the examples in this operator you could use microk8s or minikube or something else for local development. Or you could have a production cluster - but please note that this is in alpha stage and not recommended for production use yet.
+
 ## Install Operator
 
 ```bash
