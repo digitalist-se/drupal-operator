@@ -12,7 +12,7 @@ To work with this operator you need a Kubernetes cluster. Working with the examp
 ## Install Operator
 
 ```bash
-kubectl apply -f deploy/crds/drupal_v1alpha2_drupal_crd.yaml
+kubectl apply -f deploy/crds/ozzio_v1alpha2_drupal_crd.yaml
 kubectl apply -f deploy/
 ```
 
@@ -25,8 +25,9 @@ If everything works out, you could install an example Drupal installation, examp
 ```bash
 kubectl apply -f deploy/crds/minikube-example.yaml
 ```
+Get the name of the nodeport service: `kubectl get svc`.
 
-Now you could reach your deployment with: `minikube service example-drupal-minikube-1-nodeport --url`
+Now you could reach your deployment with: `minikube service example-drupal-nodeport --url`
 
 ### Microk8s
 
