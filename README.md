@@ -49,7 +49,7 @@ kubectl logs -n drupal -f -c ansible drupal-operator-randomstring
 Once the operator is installed in a namespace you can create another `Drupal` resource (this using microk8s)
 
 ```bash
-apiVersion: drupal.org/v1alpha2
+apiVersion: ozzi.io/v1alpha2
 kind: Drupal
 metadata:
   name: myexample-drupal

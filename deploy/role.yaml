@@ -40,7 +40,7 @@ rules:
   - get
   - create
 - apiGroups:
-  - drupal.org
+  - ozzi.io
   resources:
   - '*'
   verbs:

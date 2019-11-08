@@ -1,4 +1,4 @@
-apiVersion: drupal.org/v1alpha2
+apiVersion: ozzi.io/v1alpha2
 kind: Drupal
 metadata:
   name: microk8s
@@ -8,7 +8,7 @@ spec:
   type: production
   db_pvc: microk8s-hostpath
   files_pvc: microk8s-hostpath
-  db_pvc_size: 4Gi
+  db_pvc_size: 1Gi
   files_pvc_size: 1Gi
   files_accessmode: ReadWriteOnce
   drupal_replicas: 2

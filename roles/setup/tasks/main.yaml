@@ -105,7 +105,7 @@
               - name: init-drupal
                 imagePullPolicy: Always
                 image: '{{ drupal_image | default("drupal:8.7-apache")}}'
-                command: [ 'bash' , '-c' , "until ls /var/www/html/sites/default/files/; do echo waiting for volume; sleep 2; done; chown www-data:www-data -R /var/www/html/sites/default/files && chmod -R 755 /var/www/html/sites/default/files" ]
+                command: [ 'bash' , '-c' , "until ls /var/www/html/sites/default/files/; do echo waiting for volume; sleep 2; done; chown www-data:www-data -R /var/www/html/sites/default/files && chmod -R 755 /var/www/html/sites/default/files && until ls /var/www/html/sites/default/settings.php; do echo waiting for volume; sleep 2; done;" ]
                 volumeMounts:
                 - mountPath: /var/www/html/sites/default/settings.php
                   subPath: settings.php
@@ -118,6 +118,9 @@
                 - name: drupal-files
                   persistentVolumeClaim:
                     claimName: '{{ meta.name }}-files-pvc'
+                - name: drupal-settings
+                  configMap:
+                    name: '{{ meta.name }}-drupal-config'
               containers:
               - name: drupal
                 imagePullPolicy: Always
@@ -127,7 +130,7 @@
                 livenessProbe:
                   tcpSocket:
                     port: 80
-                  initialDelaySeconds: 60
+                  initialDelaySeconds: 30
                 readinessProbe:
                   tcpSocket:
                     port: 80
@@ -135,7 +138,7 @@
                 volumeMounts:
                 - mountPath: /var/www/html/sites/default/settings.php
                   subPath: settings.php
-                  name: drupal-settings
+                  name: drupal-settings                
                 - mountPath: /var/www/html/sites/default/files/
                   name: drupal-files
               imagePullSecrets:
@@ -147,6 +150,7 @@
               - name: drupal-files
                 persistentVolumeClaim:
                   claimName: '{{ meta.name }}-files-pvc'
+
 
   - name: Drupal secrets
     k8s:

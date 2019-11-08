@@ -1,4 +1,4 @@
-apiVersion: drupal.org/v1alpha2
+apiVersion: ozzi.io/v1alpha2
 kind: Drupal
 metadata:
   name: example-drupal

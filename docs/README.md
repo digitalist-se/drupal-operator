@@ -9,7 +9,7 @@ For basic information, see [README.md](../README.md) in root directory.
 ### Example 1
 
 ```bash
-apiVersion: drupal.org/v1alpha2
+apiVersion: ozzi.io/v1alpha2
 kind: Drupal
 metadata:
   name: myexample-drupal
@@ -33,7 +33,7 @@ In example 1 we have two storage classes that we have added to kubernetes, gp2 (
 ### Example 2
 
 ```bash
-apiVersion: drupal.org/v1alpha2
+apiVersion: ozzi.io/v1alpha2
 kind: Drupal
 metadata:
   name: my-drupal
