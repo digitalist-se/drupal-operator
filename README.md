@@ -33,12 +33,11 @@ Now you could reach your deployment with: `minikube service example-drupal-minik
 ```bash
 microk8s.kubectl apply -f deploy/crds/micro8s-example.yaml
 ```
-
-
+Now you could reach your deployment with the CLUSTER-IP: `microk8s.kubectl get service microk8s-nodeport`
 
 ## Logs from operator
 
-Get you pod name, and you could get logs from the drupal operator, ansible or operator style logs are available.
+Get you pod name, and you could get logs from the drupal operator, ansible or operator style logs are available. (replace randomstring with the pods real random string...)
 
 ```bash
 kubectl logs -n drupal -f -c operator drupal-operator-randomstring
