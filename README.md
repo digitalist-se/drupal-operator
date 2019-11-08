@@ -80,3 +80,5 @@ This will automatically trigger the operator to run the ansible playbook and dep
 
 For more information about how to use the Drupal Operator, see the [docs](docs/README.md).
 
+The Drupal operator is part of digitalists offering [ozzi.io](https://www.ozzi.io/)
+
