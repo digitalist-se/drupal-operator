@@ -1,7 +1,9 @@
 ---
   drupal_init_task: '&& echo -e "done"'
   mysql_root_password: root
+  change_cause: update
   drupal_image_reg_secret: ''
+  drupal_web_root: '/var/www/html'
   drupal_replicas: 1
   drupal_user: 'drupal'
   drupal_password: 'drupal'
