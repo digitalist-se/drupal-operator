@@ -54,6 +54,7 @@
               storage: '{{ files_pvc_size  | default("1Gi") }}'
 
   - name: Mariadb PVC
+    when: no_db is not defined
     k8s:
       definition:
         kind: PersistentVolumeClaim
@@ -125,7 +126,7 @@
                     name: '{{ meta.name }}-drupal-config'
               containers:
               - name: drupal
-                imagePullPolicy: Always
+                imagePullPolicy: '{{ drupal_image_pull_policy | default("Always") }}'
                 image: '{{ drupal_image | default("drupal:8.7-apache")}}'
                 ports:
                   - containerPort: 80
@@ -175,6 +176,7 @@
           user: '{{ drupal_user | b64encode }}'
 
   - name: Mariadb secrets
+    when: no_db is not defined
     k8s:
       definition:
         apiVersion: v1
@@ -190,6 +192,7 @@
         data:
           root_password: '{{ mysql_root_password | b64encode }}'
   - name: Mariadb
+    when: no_db is not defined
     k8s:
       definition:
         kind: StatefulSet
@@ -245,7 +248,8 @@
                   persistentVolumeClaim:
                     claimName: '{{ meta.name }}-db-pvc'
 
-  - name: Mariadb Service
+  - name: Mariadb Nodeport
+    when: no_db is not defined or no_db_nodeport is defined
     k8s:
       definition:
         kind: Service
@@ -264,8 +268,8 @@
           selector:
             db: '{{ meta.name }}'
 
-  - name: Drupal Service
-    when: drupal_nodeport is defined
+  - name: Drupal Nodeport
+    when: no_drupal_nodeport is not defined
     k8s:
       definition:
         kind: Service
