@@ -274,7 +274,7 @@
         kind: Service
         apiVersion: v1
         metadata:
-          name: '{{ meta.name }}-nodeport'
+          name: '{{ meta.name }}-np'
           namespace: '{{ meta.namespace }}'
           labels:
             app: drupal
@@ -294,7 +294,7 @@
         kind: Service
         apiVersion: v1
         metadata:
-          name: '{{ meta.name }}-loadbalancer'
+          name: '{{ meta.name }}-lb'
           namespace: '{{ meta.namespace }}'
           labels:
             app: drupal
@@ -331,7 +331,7 @@
                     args: 
                     - /bin/bash
                     - -c 
-                    - '{{ drupal_web_root }}/../vendor/bin/drush cron'
+                    - 'cd {{ drupal_web_root }}/sites/default && {{ drupal_web_root }}/../vendor/bin/drush cron'
                     imagePullPolicy: '{{ drupal_image_pull_policy | default("Always") }}'
                     image: '{{ drupal_image | default("drupal:8.7-apache")}}'
                     ports:
