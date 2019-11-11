@@ -102,9 +102,10 @@
                 kubernetes.io/change-cause: '{{ change_cause }}'
             spec:
               initContainers:
-              - name: init-db
-                image: busybox:1.28
-                command: ['sh', '-c', "until nslookup '{{ meta.name }}-db'; do echo waiting for '{{ meta.name }}-db'; sleep 2; done;"]
+# remove db check for now, we can now have a deployment without db
+#              - name: init-db
+#                image: busybox:1.28
+#                command: ['sh', '-c', "until nslookup '{{ meta.name }}-db'; do echo waiting for '{{ meta.name }}-db'; sleep 2; done;"]
               - name: init-drupal
                 imagePullPolicy: Always
                 image: '{{ drupal_image | default("drupal:8.7-apache")}}'
@@ -153,8 +154,6 @@
               - name: drupal-files
                 persistentVolumeClaim:
                   claimName: '{{ meta.name }}-files-pvc'
-
-
   - name: Drupal secrets
     k8s:
       definition:
@@ -308,3 +307,55 @@
           selector:
             drupal: '{{ meta.name }}'
    
+  - name: Drupal cron
+    k8s:
+      definition:
+        kind: CronJob
+        apiVersion: batch/v1beta1
+        metadata:
+          name: '{{ meta.name }}-drupal-cron'
+          namespace: '{{ meta.namespace }}'
+        spec:
+          schedule: "*/5 * * * *"
+          concurrencyPolicy: Forbid
+          successfulJobsHistoryLimit: 3
+          failedJobsHistoryLimit: 10
+          jobTemplate:
+            spec:
+              activeDeadlineSeconds: 6000
+              template:
+                spec:
+                  restartPolicy: Never
+                  containers:
+                  - name: drupal-cron
+                    args: 
+                    - /bin/bash
+                    - -c 
+                    - '{{ drupal_web_root }}/../vendor/bin/drush cron'
+                    imagePullPolicy: '{{ drupal_image_pull_policy | default("Always") }}'
+                    image: '{{ drupal_image | default("drupal:8.7-apache")}}'
+                    ports:
+                      - containerPort: 80
+                    livenessProbe:
+                      tcpSocket:
+                        port: 80
+                      initialDelaySeconds: 5
+                    readinessProbe:
+                      tcpSocket:
+                        port: 80
+                      initialDelaySeconds: 5
+                    volumeMounts:
+                    - mountPath: '{{ drupal_web_root }}/sites/default/settings.php'
+                      subPath: settings.php
+                      name: drupal-settings                
+                    - mountPath: '{{ drupal_web_root }}/sites/default/files/'
+                      name: drupal-files
+                  imagePullSecrets:
+                    - name:  '{{ drupal_image_reg_secret }}'
+                  volumes:
+                  - name: drupal-settings
+                    configMap:
+                      name: '{{ meta.name }}-drupal-config'
+                  - name: drupal-files
+                    persistentVolumeClaim:
+                      claimName: '{{ meta.name }}-files-pvc'
