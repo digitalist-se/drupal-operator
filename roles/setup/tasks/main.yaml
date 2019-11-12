@@ -362,3 +362,81 @@
                   - name: drupal-files
                     persistentVolumeClaim:
                       claimName: '{{ meta.name }}-files-pvc'
+  - name: automatic db backup secret
+    when:
+      - auto_backup is defined
+      - drupal_cron == true
+    k8s:
+      definition: 
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: '{{ meta.name }}-auto-db-backup-secret'
+          namespace: '{{ meta.namespace }}'
+        type: Opaque
+        data:
+          aws_secret_access_key: <AWS Secret Access Key>
+          database_password:  '{{ mysql_root_password | b64encode }}'
+          slack_webhook_url: <Your Slack WebHook URL>
+          
+  - name: automatic db backup secret
+    when:
+      - auto_backup is defined
+      - drupal_cron == true
+    k8s:
+      definition:
+        apiVersion: batch/v1beta1
+        kind: CronJob
+        metadata:
+          name: '{{ meta.name }}-auto-db-backup-secret'
+          namespace: '{{ meta.namespace }}'
+        spec:
+          schedule: "0 01 * * *"
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  containers:
+                  - name: my-database-backup
+                    image: gcr.io/maynard-io-public/kubernetes-s3-mysql-backup
+                    imagePullPolicy: Always
+                    env:
+                      - name: AWS_ACCESS_KEY_ID
+                        value: "<Your Access Key>"
+                      - name: AWS_SECRET_ACCESS_KEY
+                        valueFrom:
+                          secretKeyRef:
+                            name: my-database-backup
+                            key: aws_secret_access_key
+                      - name: AWS_DEFAULT_REGION
+                        value: "<Your S3 Bucket Region>"
+                      - name: AWS_BUCKET_NAME
+                        value: "<Your S3 Bucket Name>"
+                      - name: AWS_BUCKET_BACKUP_PATH
+                        value: "<Your S3 Bucket Backup Path>"
+                      - name: TARGET_DATABASE_HOST
+                        value: "<Your Target Database Host>"
+                      - name: TARGET_DATABASE_PORT
+                        value: "<Your Target Database Port>"
+                      - name: TARGET_DATABASE_NAMES
+                        value: "<Your Target Database Name(s)>"
+                      - name: TARGET_DATABASE_USER
+                        value: "<Your Target Database Username>"
+                      - name: TARGET_DATABASE_PASSWORD
+                        valueFrom:
+                          secretKeyRef:
+                            name: my-database-backup
+                            key: database_password
+                      - name: BACKUP_TIMESTAMP
+                        value: "_%Y_%m_%d"
+                      - name: SLACK_ENABLED
+                        value: "<true/false>"
+                      - name: SLACK_CHANNEL
+                        value: "#chatops"
+                      - name: SLACK_WEBHOOK_URL
+                        valueFrom:
+                          secretKeyRef:
+                            name: my-database-backup
+                            key: slack_webhook_url
+                  restartPolicy: Never
+                    
