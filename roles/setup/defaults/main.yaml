@@ -3,9 +3,17 @@
   drupal_init_task: '&& echo -e "done"'
   mysql_root_password: root
   change_cause: update
-  drupal_image_reg_secret: ''
   drupal_web_root: '/var/www/html'
   drupal_replicas: 1
+  drupal_cron_schedule: "*/5 * * * *"
+  drupal_cron_args: 'cd {{ drupal_web_root }}/sites/default && {{ drupal_web_root }}/../vendor/bin/drush cron'
+  drupal_cron_shell: /bin/bash
+  drupal_cron_activeDeadlineSeconds: 6000
+  drupal_cron_successfulJobsHistoryLimit: 3
+  drupal_cron_failedJobsHistoryLimit: 10
+  drupal_cron_restartPolicy: Never
+  drupal_cron_concurrencyPolicy: Forbid
+  drupal_image_reg_secret: ''
   drupal_user: 'drupal'
   drupal_password: 'drupal'
   drupal_db: 'drupal'

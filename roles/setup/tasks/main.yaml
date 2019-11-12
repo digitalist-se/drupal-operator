@@ -308,6 +308,9 @@
             drupal: '{{ meta.name }}'
    
   - name: Drupal cron
+    when: 
+      - drupal_cron is defined
+      - drupal_cron == true
     k8s:
       definition:
         kind: CronJob
@@ -316,22 +319,22 @@
           name: '{{ meta.name }}-drupal-cron'
           namespace: '{{ meta.namespace }}'
         spec:
-          schedule: "*/5 * * * *"
-          concurrencyPolicy: Forbid
-          successfulJobsHistoryLimit: 3
-          failedJobsHistoryLimit: 10
+          schedule: '{{ drupal_cron_schedule }}'
+          concurrencyPolicy: '{{ drupal_cron_concurrencyPolicy }}'
+          successfulJobsHistoryLimit: '{{ drupal_cron_successfulJobsHistoryLimit }}'
+          failedJobsHistoryLimit: '{{ drupal_cron_failedJobsHistoryLimit }}'
           jobTemplate:
             spec:
-              activeDeadlineSeconds: 6000
+              activeDeadlineSeconds: '{{ drupal_cron_activeDeadlineSeconds }}'
               template:
                 spec:
-                  restartPolicy: Never
+                  restartPolicy: '{{ drupal_cron_restartPolicy }}'
                   containers:
                   - name: drupal-cron
                     args: 
-                    - /bin/bash
+                    - '{{ drupal_cron_shell }}'
                     - -c 
-                    - 'cd {{ drupal_web_root }}/sites/default && {{ drupal_web_root }}/../vendor/bin/drush cron'
+                    - '{{ drupal_cron_args }}'
                     imagePullPolicy: '{{ drupal_image_pull_policy | default("Always") }}'
                     image: '{{ drupal_image | default("drupal:8.7-apache")}}'
                     ports:
