@@ -1,7 +1,7 @@
 ---
-  - name: Drupal Settings
-    k8s:
-      definition:
+- name: Drupal Settings
+  k8s_raw:
+    definition:
         kind: ConfigMap
         apiVersion: v1
         metadata:
@@ -16,427 +16,434 @@
 
 
 # Could be useful later
-  - name: Shared config
-    k8s:
-      definition:
-        kind: ConfigMap
-        apiVersion: v1
-        metadata:
-          name: '{{ meta.name }}-shared-config'
-          namespace: '{{ meta.namespace }}'
-          labels:
-            app: drupal
-            site: '{{ meta.name }}'
+- name: Shared config
+  k8s_raw:
+    definition:
+      kind: ConfigMap
+      apiVersion: v1
+      metadata:
+        name: '{{ meta.name }}-shared-config'
+        namespace: '{{ meta.namespace }}'
+        labels:
+          app: drupal
+          site: '{{ meta.name }}'
+          drupal: '{{ meta.name }}'
+      data:
+        meta-name: '{{ meta.name }}'
+        meta-namespace: '{{ meta.namespace }}'
+        db-host: '{{ meta.name }}-db'
+
+- name: Files PVC
+  k8s_raw:
+    definition:
+      kind: PersistentVolumeClaim
+      apiVersion: v1
+      metadata:
+        name: '{{ meta.name }}-files-pvc'
+        namespace: '{{ meta.namespace }}'
+        labels:
+          app: drupal
+          site: '{{ meta.name }}'
+          drupal: '{{ meta.name }}'
+      spec:
+        storageClassName: '{{ files_pvc | default("default") }}'
+        accessModes:
+          - '{{ files_accessmode | default("ReadWriteOnce") }}'
+        resources:
+          requests:
+            storage: '{{ files_pvc_size  | default("1Gi") }}'
+
+- name: Mariadb PVC
+  when: no_db is not defined
+  k8s_raw:
+    definition:
+      kind: PersistentVolumeClaim
+      apiVersion: v1
+      metadata:
+        name: '{{ meta.name }}-db-pvc'
+        namespace: '{{ meta.namespace }}'
+        labels:
+          app: mariadb
+          site: '{{ meta.name }}'
+          db: '{{ meta.name }}'
+      spec:
+        storageClassName: '{{ db_pvc | default("default") }}'
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: '{{ db_pvc_size  | default("2Gi") }}'
+
+- name: Drupal
+  k8s_raw:
+    definition:
+      kind: Deployment
+      apiVersion: apps/v1
+      metadata:
+        name: '{{ meta.name }}-drupal'
+        namespace: '{{ meta.namespace }}'
+      spec:
+        replicas: '{{ drupal_replicas }}'
+        strategy:
+          type: RollingUpdate
+          rollingUpdate:
+            maxSurge: 1
+            maxUnavailable: 1
+        selector:
+          matchLabels:
             drupal: '{{ meta.name }}'
-        data:
-          meta-name: '{{ meta.name }}'
-          meta-namespace: '{{ meta.namespace }}'
-          db-host: '{{ meta.name }}-db'
-
-  - name: Files PVC
-    k8s:
-      definition:
-        kind: PersistentVolumeClaim
-        apiVersion: v1
-        metadata:
-          name: '{{ meta.name }}-files-pvc'
-          namespace: '{{ meta.namespace }}'
-          labels:
-            app: drupal
-            site: '{{ meta.name }}'
-            drupal: '{{ meta.name }}'
-        spec:
-          storageClassName: '{{ files_pvc | default("default") }}'
-          accessModes:
-            - '{{ files_accessmode | default("ReadWriteOnce")}}'
-          resources:
-            requests:
-              storage: '{{ files_pvc_size  | default("1Gi") }}'
-
-  - name: Mariadb PVC
-    when: no_db is not defined
-    k8s:
-      definition:
-        kind: PersistentVolumeClaim
-        apiVersion: v1
-        metadata:
-          name: '{{ meta.name }}-db-pvc'
-          namespace: '{{ meta.namespace }}'
-          labels:
-            app: mariadb
-            site: '{{ meta.name }}'
-            db: '{{ meta.name }}'
-        spec:
-          storageClassName: '{{ db_pvc | default("default") }}'
-          accessModes:
-            - ReadWriteOnce
-          resources:
-            requests:
-              storage: '{{ db_pvc_size  | default("2Gi") }}'
-
-  - name: Drupal
-    k8s:
-      definition:
-        kind: Deployment
-        apiVersion: apps/v1
-        metadata:
-          name: '{{ meta.name }}-drupal'
-          namespace: '{{ meta.namespace }}'
-        spec:
-          replicas: '{{ drupal_replicas }}'
-          strategy:
-            type: RollingUpdate
-            rollingUpdate:
-              maxSurge: 1
-              maxUnavailable: 1
-          selector:
-            matchLabels:
+        template:
+          metadata:
+            labels:
               drupal: '{{ meta.name }}'
-          template:
-            metadata:
-              labels:
-                drupal: '{{ meta.name }}'
-                app: drupal
-                site: '{{ meta.name }}'
-              annotations:
-                kubernetes.io/change-cause: '{{ change_cause }}'
-            spec:
-              initContainers:
+              app: drupal
+              site: '{{ meta.name }}'
+            annotations:
+              kubernetes.io/change-cause: '{{ change_cause }}'
+          spec:
+            initContainers:
 # remove db check for now, we can now have a deployment without db
 #              - name: init-db
 #                image: busybox:1.28
 #                command: ['sh', '-c', "until nslookup '{{ meta.name }}-db'; do echo waiting for '{{ meta.name }}-db'; sleep 2; done;"]
-              - name: init-drupal
-                imagePullPolicy: Always
-                image: '{{ drupal_image | default("drupal:8.7-apache")}}'
-                command: [ 'bash' , '-c' , "until ls {{ drupal_web_root }}/sites/default/files; do echo waiting for volume; sleep 2; done; chown www-data:www-data -R {{ drupal_web_root }}/sites/default/files/ && chmod -R 755 {{ drupal_web_root }}/sites/default/files/ && until ls {{ drupal_web_root }}/sites/default/settings.php; do echo waiting for volume; sleep 2; done;" ]
-                volumeMounts:
-                - mountPath: '{{ drupal_web_root }}/sites/default/settings.php'
-                  subPath: settings.php
-                  name: drupal-settings
-                - mountPath: '{{ drupal_web_root }}/sites/default/files/'
-                  name: drupal-files
-                imagePullSecrets:
-                - name:  '{{ drupal_image_reg_secret }}'
-                volumes:
-                - name: drupal-files
-                  persistentVolumeClaim:
-                    claimName: '{{ meta.name }}-files-pvc'
-                - name: drupal-settings
-                  configMap:
-                    name: '{{ meta.name }}-drupal-config'
-              containers:
-              - name: drupal
-                imagePullPolicy: '{{ drupal_image_pull_policy | default("Always") }}'
-                image: '{{ drupal_image | default("drupal:8.7-apache")}}'
-                ports:
-                  - containerPort: 80
-                livenessProbe:
-                  tcpSocket:
-                    port: 80
-                  initialDelaySeconds: 5
-                readinessProbe:
-                  tcpSocket:
-                    port: 80
-                  initialDelaySeconds: 5
-                volumeMounts:
-                - mountPath: '{{ drupal_web_root }}/sites/default/settings.php'
-                  subPath: settings.php
-                  name: drupal-settings                
-                - mountPath: '{{ drupal_web_root }}/sites/default/files/'
-                  name: drupal-files
+            - name: init-drupal
+              imagePullPolicy: Always
+              image: '{{ drupal_image | default("drupal:8.7-apache") }}'
+              command: [ 'bash' , '-c' , "until ls {{ drupal_web_root }}/sites/default/files; do echo waiting for volume; sleep 2; done; chown www-data:www-data -R {{ drupal_web_root }}/sites/default/files/ && chmod -R 755 {{ drupal_web_root }}/sites/default/files/ && until ls {{ drupal_web_root }}/sites/default/settings.php; do echo waiting for volume; sleep 2; done;" ]
+              volumeMounts:
+              - mountPath: '{{ drupal_web_root }}/sites/default/settings.php'
+                subPath: settings.php
+                name: drupal-settings
+              - mountPath: '{{ drupal_web_root }}/sites/default/files/'
+                name: drupal-files
               imagePullSecrets:
-                - name:  '{{ drupal_image_reg_secret }}'
+              - name:  '{{ drupal_image_reg_secret }}'
               volumes:
-              - name: drupal-settings
-                configMap:
-                  name: '{{ meta.name }}-drupal-config'
               - name: drupal-files
                 persistentVolumeClaim:
                   claimName: '{{ meta.name }}-files-pvc'
-  - name: Drupal secrets
-    k8s:
-      definition:
-        apiVersion: v1
-        kind: Secret
-        metadata:
-          name: '{{ meta.name }}.drupal-secrets'
-          namespace: '{{ meta.namespace }}'
-          labels:
-            app: drupal
-            site: '{{ meta.name }}'
-            drupal: '{{ meta.name }}'
-        type: Opaque
-        data:
-          db_database: '{{ drupal_db | b64encode }}'
-          db_password: '{{ drupal_db_pass | b64encode }}'
-          db_user: '{{ drupal_db_username | b64encode }}'
-          password: '{{ drupal_password | b64encode }}'
-          user: '{{ drupal_user | b64encode }}'
+              - name: drupal-settings
+                configMap:
+                  name: '{{ meta.name }}-drupal-config'
+            containers:
+            - name: drupal
+              imagePullPolicy: '{{ drupal_image_pull_policy | default("Always") }}'
+              image: '{{ drupal_image | default("drupal:8.7-apache") }}'
+              ports:
+                - containerPort: 80
+              livenessProbe:
+                tcpSocket:
+                  port: 80
+                initialDelaySeconds: 5
+              readinessProbe:
+                tcpSocket:
+                  port: 80
+                initialDelaySeconds: 5
+              volumeMounts:
+              - mountPath: '{{ drupal_web_root }}/sites/default/settings.php'
+                subPath: settings.php
+                name: drupal-settings
+              - mountPath: '{{ drupal_web_root }}/sites/default/files/'
+                name: drupal-files
+            imagePullSecrets:
+              - name:  '{{ drupal_image_reg_secret }}'
+            volumes:
+            - name: drupal-settings
+              configMap:
+                name: '{{ meta.name }}-drupal-config'
+            - name: drupal-files
+              persistentVolumeClaim:
+                claimName: '{{ meta.name }}-files-pvc'
+- name: Drupal secrets
+  k8s_raw:
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: '{{ meta.name }}.drupal-secrets'
+        namespace: '{{ meta.namespace }}'
+        labels:
+          app: drupal
+          site: '{{ meta.name }}'
+          drupal: '{{ meta.name }}'
+      type: Opaque
+      data:
+        db_database: '{{ drupal_db | b64encode }}'
+        db_password: '{{ drupal_db_pass | b64encode }}'
+        db_user: '{{ drupal_db_username | b64encode }}'
+        password: '{{ drupal_password | b64encode }}'
+        user: '{{ drupal_user | b64encode }}'
 
-  - name: Mariadb secrets
-    when: no_db is not defined
-    k8s:
-      definition:
-        apiVersion: v1
-        kind: Secret
-        metadata:
-          name: '{{ meta.name }}.mariadb-secrets'
-          namespace: '{{ meta.namespace }}'
-          labels:
-            app: mariadb
-            site: '{{ meta.name }}'
+- name: Mariadb secrets
+  when: no_db is not defined
+  k8s_raw:
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: '{{ meta.name }}.mariadb-secrets'
+        namespace: '{{ meta.namespace }}'
+        labels:
+          app: mariadb
+          site: '{{ meta.name }}'
+          db: '{{ meta.name }}'
+      type: Opaque
+      data:
+        root_password: '{{ mysql_root_password | b64encode }}'
+- name: Mariadb
+  when: no_db is not defined
+  k8s_raw:
+    definition:
+      kind: StatefulSet
+      apiVersion: apps/v1
+      metadata:
+        name: '{{ meta.name }}-db'
+        namespace: '{{ meta.namespace }}'
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
             db: '{{ meta.name }}'
-        type: Opaque
-        data:
-          root_password: '{{ mysql_root_password | b64encode }}'
-  - name: Mariadb
-    when: no_db is not defined
-    k8s:
-      definition:
-        kind: StatefulSet
-        apiVersion: apps/v1
-        metadata:
-          name: '{{ meta.name }}-db'
-          namespace: '{{ meta.namespace }}'
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
+        strategy:
+          type: Recreate
+        template:
+          metadata:
+            labels:
+              app: mariadb
+              site: '{{ meta.name }}'
               db: '{{ meta.name }}'
-          strategy:
-            type: Recreate
-          template:
-            metadata:
-              labels:
-                app: mariadb
-                site: '{{ meta.name }}'
-                db: '{{ meta.name }}'
-            spec:
-              containers:
-              - name: mariadb
-                image: "mariadb:10"
-                ports:
-                  - containerPort: 3306
-                env:
-                  - name: MYSQL_DATABASE
-                    valueFrom:
-                      secretKeyRef:
-                        name: '{{ meta.name }}.drupal-secrets'
-                        key: db_database
-                  - name: MYSQL_USER
-                    valueFrom:
-                      secretKeyRef:
-                        name: '{{ meta.name }}.drupal-secrets'
-                        key: db_user
-                  - name: MYSQL_PASSWORD
-                    valueFrom:
-                      secretKeyRef:
-                        name: '{{ meta.name }}.drupal-secrets'
-                        key: db_password
-                  - name: MYSQL_ROOT_PASSWORD
-                    valueFrom:
-                      secretKeyRef:
-                        name: '{{ meta.name }}.mariadb-secrets'
-                        key: root_password
-                volumeMounts:
-                - mountPath: /var/lib/mysql/
-                  name: drupal-db
-              volumes:
-                - name: drupal-db
+          spec:
+            containers:
+            - name: mariadb
+              image: "mariadb:10"
+              ports:
+                - containerPort: 3306
+              env:
+                - name: MYSQL_DATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: '{{ meta.name }}.drupal-secrets'
+                      key: db_database
+                - name: MYSQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: '{{ meta.name }}.drupal-secrets'
+                      key: db_user
+                - name: MYSQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: '{{ meta.name }}.drupal-secrets'
+                      key: db_password
+                - name: MYSQL_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: '{{ meta.name }}.mariadb-secrets'
+                      key: root_password
+              volumeMounts:
+              - mountPath: /var/lib/mysql/
+                name: drupal-db
+            volumes:
+              - name: drupal-db
+                persistentVolumeClaim:
+                  claimName: '{{ meta.name }}-db-pvc'
+
+- name: Mariadb Nodeport
+  when: no_db is not defined or no_db_nodeport is defined
+  k8s_raw:
+    definition:
+      kind: Service
+      apiVersion: v1
+      metadata:
+        name: '{{ meta.name }}-db'
+        namespace: '{{ meta.namespace }}'
+        labels:
+          app: mariadb
+          site: '{{ meta.name }}'
+      spec:
+        type: NodePort
+        ports:
+          - port: 3306
+            targetPort: 3306
+        selector:
+          db: '{{ meta.name }}'
+
+- name: Drupal Nodeport
+  when: 
+    - no_drupal_nodeport is not defined
+  k8s_raw:
+    definition:
+      kind: Service
+      apiVersion: v1
+      metadata:
+        name: '{{ meta.name }}-np'
+        namespace: '{{ meta.namespace }}'
+        labels:
+          app: drupal
+          site: '{{ meta.name }}'
+      spec:
+        type: NodePort
+        ports:
+          - port: 80
+            targetPort: 80
+        selector:
+          drupal: '{{ meta.name }}'
+
+- name: Drupal Loadbalancer
+  when: 
+    - drupal_loadbalancer is defined
+    - drupal_loadbalancer
+  k8s_raw:
+    definition:
+      kind: Service
+      apiVersion: v1
+      metadata:
+        name: '{{ meta.name }}-lb'
+        namespace: '{{ meta.namespace }}'
+        labels:
+          app: drupal
+          site: '{{ meta.name }}'
+      spec:
+        type: LoadBalancer
+        ports:
+          - port: 80
+            targetPort: 80
+        selector:
+          drupal: '{{ meta.name }}'
+
+- name: Drupal cron
+  when:
+    - drupal_cron is defined
+    - drupal_cron
+  k8s_raw:
+    definition:
+      kind: CronJob
+      apiVersion: batch/v1beta1
+      metadata:
+        name: '{{ meta.name }}-drupal-cron'
+        namespace: '{{ meta.namespace }}'
+      spec:
+        schedule: '{{ drupal_cron_schedule }}'
+        concurrencyPolicy: '{{ drupal_cron_concurrencyPolicy }}'
+        successfulJobsHistoryLimit: '{{ drupal_cron_successfulJobsHistoryLimit }}'
+        failedJobsHistoryLimit: '{{ drupal_cron_failedJobsHistoryLimit }}'
+        jobTemplate:
+          spec:
+            activeDeadlineSeconds: '{{ drupal_cron_activeDeadlineSeconds }}'
+            template:
+              spec:
+                restartPolicy: '{{ drupal_cron_restartPolicy }}'
+                containers:
+                - name: drupal-cron
+                  args:
+                  - '{{ drupal_cron_shell }}'
+                  - -c
+                  - '{{ drupal_cron_args }}'
+                  imagePullPolicy: '{{ drupal_image_pull_policy | default("Always") }}'
+                  image: '{{ drupal_image | default("drupal:8.7-apache") }}'
+                  ports:
+                    - containerPort: 80
+                  livenessProbe:
+                    tcpSocket:
+                      port: 80
+                    initialDelaySeconds: 5
+                  readinessProbe:
+                    tcpSocket:
+                      port: 80
+                    initialDelaySeconds: 5
+                  volumeMounts:
+                  - mountPath: '{{ drupal_web_root }}/sites/default/settings.php'
+                    subPath: settings.php
+                    name: drupal-settings
+                  - mountPath: '{{ drupal_web_root }}/sites/default/files/'
+                    name: drupal-files
+                imagePullSecrets:
+                  - name:  '{{ drupal_image_reg_secret }}'
+                volumes:
+                - name: drupal-settings
+                  configMap:
+                    name: '{{ meta.name }}-drupal-config'
+                - name: drupal-files
                   persistentVolumeClaim:
-                    claimName: '{{ meta.name }}-db-pvc'
+                    claimName: '{{ meta.name }}-files-pvc'
 
-  - name: Mariadb Nodeport
-    when: no_db is not defined or no_db_nodeport is defined
-    k8s:
-      definition:
-        kind: Service
-        apiVersion: v1
-        metadata:
-          name: '{{ meta.name }}-db'
-          namespace: '{{ meta.namespace }}'
-          labels:
-            app: mariadb
-            site: '{{ meta.name }}'
-        spec:
-          type: NodePort
-          ports:
-            - port: 3306
-              targetPort: 3306
-          selector:
-            db: '{{ meta.name }}'
-
-  - name: Drupal Nodeport
-    when: no_drupal_nodeport is not defined
-    k8s:
-      definition:
-        kind: Service
-        apiVersion: v1
-        metadata:
-          name: '{{ meta.name }}-np'
-          namespace: '{{ meta.namespace }}'
-          labels:
-            app: drupal
-            site: '{{ meta.name }}'
-        spec:
-          type: NodePort
-          ports:
-            - port: 80
-              targetPort: 80
-          selector:
-            drupal: '{{ meta.name }}'
-
-  - name: Drupal Loadbalancer
-    when: drupal_loadbalancer is defined
-    k8s:
-      definition:
-        kind: Service
-        apiVersion: v1
-        metadata:
-          name: '{{ meta.name }}-lb'
-          namespace: '{{ meta.namespace }}'
-          labels:
-            app: drupal
-            site: '{{ meta.name }}'
-        spec:
-          type: LoadBalancer 
-          ports:
-            - port: 80
-              targetPort: 80
-          selector:
-            drupal: '{{ meta.name }}'
-   
-  - name: Drupal cron
-    when: 
-      - drupal_cron is defined
-      - drupal_cron == true
-    k8s:
-      definition:
-        kind: CronJob
-        apiVersion: batch/v1beta1
-        metadata:
-          name: '{{ meta.name }}-drupal-cron'
-          namespace: '{{ meta.namespace }}'
-        spec:
-          schedule: '{{ drupal_cron_schedule }}'
-          concurrencyPolicy: '{{ drupal_cron_concurrencyPolicy }}'
-          successfulJobsHistoryLimit: '{{ drupal_cron_successfulJobsHistoryLimit }}'
-          failedJobsHistoryLimit: '{{ drupal_cron_failedJobsHistoryLimit }}'
-          jobTemplate:
-            spec:
-              activeDeadlineSeconds: '{{ drupal_cron_activeDeadlineSeconds }}'
-              template:
-                spec:
-                  restartPolicy: '{{ drupal_cron_restartPolicy }}'
-                  containers:
-                  - name: drupal-cron
-                    args: 
-                    - '{{ drupal_cron_shell }}'
-                    - -c 
-                    - '{{ drupal_cron_args }}'
-                    imagePullPolicy: '{{ drupal_image_pull_policy | default("Always") }}'
-                    image: '{{ drupal_image | default("drupal:8.7-apache")}}'
-                    ports:
-                      - containerPort: 80
-                    livenessProbe:
-                      tcpSocket:
-                        port: 80
-                      initialDelaySeconds: 5
-                    readinessProbe:
-                      tcpSocket:
-                        port: 80
-                      initialDelaySeconds: 5
-                    volumeMounts:
-                    - mountPath: '{{ drupal_web_root }}/sites/default/settings.php'
-                      subPath: settings.php
-                      name: drupal-settings                
-                    - mountPath: '{{ drupal_web_root }}/sites/default/files/'
-                      name: drupal-files
-                  imagePullSecrets:
-                    - name:  '{{ drupal_image_reg_secret }}'
-                  volumes:
-                  - name: drupal-settings
-                    configMap:
-                      name: '{{ meta.name }}-drupal-config'
-                  - name: drupal-files
-                    persistentVolumeClaim:
-                      claimName: '{{ meta.name }}-files-pvc'
-  - name: automatic db backup secret
-    when:
-      - auto_backup is defined
-      - drupal_cron == true
-    k8s:
-      definition: 
-        apiVersion: v1
-        kind: Secret
-        metadata:
-          name: '{{ meta.name }}-auto-db-backup-secret'
-          namespace: '{{ meta.namespace }}'
-        type: Opaque
-        data:
-          aws_secret_access_key: <AWS Secret Access Key>
-          database_password:  '{{ mysql_root_password | b64encode }}'
-          slack_webhook_url: <Your Slack WebHook URL>
-          
-  - name: automatic db backup secret
-    when:
-      - auto_backup is defined
-      - drupal_cron == true
-    k8s:
-      definition:
-        apiVersion: batch/v1beta1
-        kind: CronJob
-        metadata:
-          name: '{{ meta.name }}-auto-db-backup-secret'
-          namespace: '{{ meta.namespace }}'
-        spec:
-          schedule: "0 01 * * *"
-          jobTemplate:
-            spec:
-              template:
-                spec:
-                  containers:
-                  - name: my-database-backup
-                    image: gcr.io/maynard-io-public/kubernetes-s3-mysql-backup
-                    imagePullPolicy: Always
-                    env:
-                      - name: AWS_ACCESS_KEY_ID
-                        value: "<Your Access Key>"
-                      - name: AWS_SECRET_ACCESS_KEY
-                        valueFrom:
-                          secretKeyRef:
-                            name: my-database-backup
-                            key: aws_secret_access_key
-                      - name: AWS_DEFAULT_REGION
-                        value: "<Your S3 Bucket Region>"
-                      - name: AWS_BUCKET_NAME
-                        value: "<Your S3 Bucket Name>"
-                      - name: AWS_BUCKET_BACKUP_PATH
-                        value: "<Your S3 Bucket Backup Path>"
-                      - name: TARGET_DATABASE_HOST
-                        value: "<Your Target Database Host>"
-                      - name: TARGET_DATABASE_PORT
-                        value: "<Your Target Database Port>"
-                      - name: TARGET_DATABASE_NAMES
-                        value: "<Your Target Database Name(s)>"
-                      - name: TARGET_DATABASE_USER
-                        value: "<Your Target Database Username>"
-                      - name: TARGET_DATABASE_PASSWORD
-                        valueFrom:
-                          secretKeyRef:
-                            name: my-database-backup
-                            key: database_password
-                      - name: BACKUP_TIMESTAMP
-                        value: "_%Y_%m_%d"
-                      - name: SLACK_ENABLED
-                        value: "<true/false>"
-                      - name: SLACK_CHANNEL
-                        value: "#chatops"
-                      - name: SLACK_WEBHOOK_URL
-                        valueFrom:
-                          secretKeyRef:
-                            name: my-database-backup
-                            key: slack_webhook_url
-                  restartPolicy: Never
-                    
+- name: automatic db backup secret
+  when:
+    - auto_backup is defined
+    - auto_backup
+  k8s_raw:
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: '{{ meta.name }}-auto-db-backup-secret'
+        namespace: '{{ meta.namespace }}'
+      type: Opaque
+      data:
+        aws_access_key: '{{ aws_access_key | b64encode }}'
+        aws_secret_access_key: '{{ aws_secret_access_key | b64encode }}'
+        backup_endpoint: '{{ backup_endpoint | b64encode }}'
+- name: automatic db backup
+  when:
+    - auto_backup is defined
+  k8s_raw:
+    definition:
+      apiVersion: batch/v1beta1
+      kind: CronJob
+      metadata:
+        name: '{{ meta.name }}-auto-db-backup'
+        namespace: '{{ meta.namespace }}'
+      spec:
+        schedule: "*/1 * * * *"
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                containers:
+                - name: auto-db-backup
+                  image: schickling/mysql-backup-s3
+                  imagePullPolicy: Always
+                  env:
+                    - name: S3_ACCESS_KEY_ID
+                      valueFrom:
+                        secretKeyRef:
+                          name: '{{ meta.name }}-auto-db-backup-secret'
+                          key: aws_access_key
+                    - name: S3_SECRET_ACCESS_KEY
+                      valueFrom:
+                        secretKeyRef:
+                          name: '{{ meta.name }}-auto-db-backup-secret'
+                          key: aws_secret_access_key
+                    - name: S3_REGION
+                      value: us-east-1
+                    - name: S3_BUCKET
+                      value: sobi-backups                        
+                    - name: S3_ENDPOINT
+                      valueFrom:
+                        secretKeyRef:
+                          name: '{{ meta.name }}-auto-db-backup-secret'
+                          key: backup_endpoint
+                    - name: S3_PREFIX
+                      value: '{{ meta.name }}'
+                    - name: MYSQL_HOST
+                      value: '{{ meta.name }}-db'
+                    - name: MYSQL_PORT
+                      value: "3306"
+                    - name: MYSQLDUMP_DATABASE
+                      valueFrom:
+                        secretKeyRef:
+                          name: '{{ meta.name }}.drupal-secrets'
+                          key: db_database
+                    - name: MYSQL_USER
+                      valueFrom:
+                        secretKeyRef:
+                          name: '{{ meta.name }}.drupal-secrets'
+                          key: db_user
+                    - name: MYSQL_PASSWORD
+                      valueFrom:
+                        secretKeyRef:
+                          name: '{{ meta.name }}.drupal-secrets'
+                          key: db_password
+                restartPolicy: Never
+- name: Debug vars
+  debug:
+    msg: 'Auto backup: {{ auto_backup }} Site: {{ meta.name }}. S3 endpoint: {{ backup_endpoint }} {{ aws_access_key }}'

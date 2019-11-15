@@ -1,6 +1,7 @@
 ---
   drupal_operator_image: ozziio/drupal-operator:v0.0.2
   drupal_init_task: '&& echo -e "done"'
+  backup_endpoint: ''
   mysql_root_password: root
   change_cause: update
   drupal_web_root: '/var/www/html'
@@ -41,3 +42,5 @@
         $settings['trusted_host_patterns'] = ['{{ trusted_host_patterns | default('^.+$', true) }}'];
         $config['locale.settings']['translation']['path'] = '{{ drupal_translation_path }}';
         {{ drupal_extra_config }}
+  aws_access_key: minio
+  aws_secret_access_key: minio123
