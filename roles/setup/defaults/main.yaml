@@ -1,12 +1,31 @@
 ---
   drupal_operator_image: ozziio/drupal-operator:v0.0.2
-  drupal_init_task: '&& echo -e "done"'
-  backup_endpoint: ''
+  auto_backup: false
+  backup_endpoint: '**None**'
+  backup_cron_schedule: '0 3 * * *'
   mysql_root_password: root
   change_cause: update
+  drupal_name: drupal
+  drupal_ports_containerPort: 80
+  drupal_locale: en-GB
+  drupal_image: drupal:8.7-apache
+  drupal_image_reg_secret: ''
+  drupal_image_pull_policy: 'Always'
+  drupal_resources_requests_memory: 128Mi
+  drupal_resources_requests_cpu: 500m
+  drupal_resources_limits_memory: 512Mi
+  drupal_resources_limits_cpu: 1000m
+  drupal_readinessProbe_initialDelaySeconds: 5
+  drupal_readinessProbe_periodSeconds: 5
+  drupal_readinessProbe_timeoutSeconds: 120
+  drupal_livenessProbe_tcpSocket_port: 80
+  drupal_livenessProbe_initialDelaySeconds: 30
+  drupal_livenessProbe_periodSeconds: 30
+  drupal_livenessProbe_timeoutSeconds: 3
+  drupal_root: '/var/www'
   drupal_web_root: '/var/www/html'
   drupal_replicas: 1
-  drupal_cron_schedule: "*/5 * * * *"
+  drupal_cron_schedule: '*/5 * * * *'
   drupal_cron_args: 'cd {{ drupal_web_root }}/sites/default && {{ drupal_web_root }}/../vendor/bin/drush cron'
   drupal_cron_shell: /bin/bash
   drupal_cron_activeDeadlineSeconds: 6000
@@ -14,12 +33,11 @@
   drupal_cron_failedJobsHistoryLimit: 10
   drupal_cron_restartPolicy: Never
   drupal_cron_concurrencyPolicy: Forbid
-  drupal_image_reg_secret: ''
   drupal_user: 'drupal'
   drupal_password: 'drupal'
   drupal_db: 'drupal'
   drupal_db_username: 'drupal'
-  drupal_db_pass: "{{ lookup('password', '/tmp/passwordfile length=8 chars=digits') }}"
+  drupal_db_pass: "{{ lookup('password', '/tmp/passwordfile length=8 chars=ascii_letters,digits') }}"
   drupal_db_prefix: ''
   drupal_db_port: '3306'
   drupal_db_driver: 'mysql'
@@ -28,19 +46,29 @@
   drupal_extra_config: ''
   drupal_settings_php: |-
         <?php
-        $databases['default']['default'] = array(
-          'database' => '{{ drupal_db }}',
-          'username' => '{{ drupal_db_username }}',
-          'password' => '{{ drupal_db_pass }}',
+        $databases['default']['default'] = [
+          'database' => getenv('MYSQL_DATABASE'),
+          'username' => getenv('MYSQL_USER'),
+          'password' => getenv('MYSQL_PASSWORD'),
           'prefix' => '{{ drupal_db_prefix }}',
           'host' => '{{ meta.name }}-db',
           'port' => '{{ drupal_db_port }}',
           'namespace' => '{{ drupal_db_namespace }}',
           'driver' => '{{ drupal_db_driver }}',
-        );
+        ];
         $settings['hash_salt'] = '{{ hash_salt | default(lookup('password', '/dev/null chars=ascii_letters'), true) }}';
         $settings['trusted_host_patterns'] = ['{{ trusted_host_patterns | default('^.+$', true) }}'];
         $config['locale.settings']['translation']['path'] = '{{ drupal_translation_path }}';
         {{ drupal_extra_config }}
   aws_access_key: minio
   aws_secret_access_key: minio123
+  files_pvc: default
+  files_pvc_size: 1Gi
+  files_accessmode: ReadWriteOnce
+  db_pvc: default
+  db_pvc_size: 1Gi
+  drupal_startup: |-
+    #!/bin/bash
+    echo "drupal started" 
+
+ 

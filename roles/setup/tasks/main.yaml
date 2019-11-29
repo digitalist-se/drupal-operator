@@ -1,6 +1,6 @@
 ---
 - name: Drupal Settings
-  k8s_raw:
+  k8s:
     definition:
         kind: ConfigMap
         apiVersion: v1
@@ -14,7 +14,21 @@
         data:
           settings.php: '{{ drupal_settings_php }}'
 
-
+- name: Drupal startup
+  k8s:
+    definition:
+        kind: ConfigMap
+        apiVersion: v1
+        metadata:
+          name: '{{ meta.name }}-drupal-startup'
+          namespace: '{{ meta.namespace }}'
+          labels:
+            app: drupal
+            site: '{{ meta.name }}'
+            drupal: '{{ meta.name }}'
+        data:
+          startup.sh: '{{ drupal_startup }}'
+      
 # Could be useful later
 - name: Shared config
   k8s_raw:
@@ -46,12 +60,12 @@
           site: '{{ meta.name }}'
           drupal: '{{ meta.name }}'
       spec:
-        storageClassName: '{{ files_pvc | default("default") }}'
+        storageClassName: '{{ files_pvc }}'
         accessModes:
-          - '{{ files_accessmode | default("ReadWriteOnce") }}'
+          - '{{ files_accessmode }}'
         resources:
           requests:
-            storage: '{{ files_pvc_size  | default("1Gi") }}'
+            storage: '{{ files_pvc_size }}'
 
 - name: Mariadb PVC
   when: no_db is not defined
@@ -67,12 +81,12 @@
           site: '{{ meta.name }}'
           db: '{{ meta.name }}'
       spec:
-        storageClassName: '{{ db_pvc | default("default") }}'
+        storageClassName: '{{ db_pvc }}'
         accessModes:
           - ReadWriteOnce
         resources:
           requests:
-            storage: '{{ db_pvc_size  | default("2Gi") }}'
+            storage: '{{ db_pvc_size }}'
 
 - name: Drupal
   k8s_raw:
@@ -102,47 +116,73 @@
               kubernetes.io/change-cause: '{{ change_cause }}'
           spec:
             initContainers:
-# remove db check for now, we can now have a deployment without db
-#              - name: init-db
-#                image: busybox:1.28
-#                command: ['sh', '-c', "until nslookup '{{ meta.name }}-db'; do echo waiting for '{{ meta.name }}-db'; sleep 2; done;"]
-            - name: init-drupal
-              imagePullPolicy: Always
-              image: '{{ drupal_image | default("drupal:8.7-apache") }}'
-              command: [ 'bash' , '-c' , "until ls {{ drupal_web_root }}/sites/default/files; do echo waiting for volume; sleep 2; done; chown www-data:www-data -R {{ drupal_web_root }}/sites/default/files/ && chmod -R 755 {{ drupal_web_root }}/sites/default/files/ && until ls {{ drupal_web_root }}/sites/default/settings.php; do echo waiting for volume; sleep 2; done;" ]
-              volumeMounts:
-              - mountPath: '{{ drupal_web_root }}/sites/default/settings.php'
-                subPath: settings.php
-                name: drupal-settings
-              - mountPath: '{{ drupal_web_root }}/sites/default/files/'
-                name: drupal-files
-              imagePullSecrets:
-              - name:  '{{ drupal_image_reg_secret }}'
-              volumes:
-              - name: drupal-files
-                persistentVolumeClaim:
-                  claimName: '{{ meta.name }}-files-pvc'
-              - name: drupal-settings
-                configMap:
-                  name: '{{ meta.name }}-drupal-config'
+            - name: init-db
+              when: no_db is not defined
+              image: busybox:1.28
+              command: ['sh', '-c', "until nslookup '{{ meta.name }}-db'; do echo waiting for '{{ meta.name }}-db'; sleep 2; done;"]            
             containers:
-            - name: drupal
-              imagePullPolicy: '{{ drupal_image_pull_policy | default("Always") }}'
-              image: '{{ drupal_image | default("drupal:8.7-apache") }}'
+            - name: '{{ drupal_name }}'
+              imagePullPolicy: '{{ drupal_image_pull_policy }}'
+              image: '{{ drupal_image }}'
+              resources:
+                requests:
+                  memory: '{{ drupal_resources_requests_memory }}'
+                  cpu: '{{ drupal_resources_requests_cpu }}'
+                limits:
+                  memory: '{{ drupal_resources_limits_memory }}'
+                  cpu: '{{ drupal_resources_limits_cpu }}'
               ports:
-                - containerPort: 80
+                - containerPort: '{{ drupal_ports_containerPort }}'
               livenessProbe:
                 tcpSocket:
-                  port: 80
-                initialDelaySeconds: 5
+                  port: '{{ drupal_livenessProbe_tcpSocket_port }}'
+                initialDelaySeconds: '{{ drupal_livenessProbe_initialDelaySeconds }}'
+                periodSeconds: '{{ drupal_livenessProbe_periodSeconds }}'
+                timeoutSeconds: '{{ drupal_livenessProbe_timeoutSeconds }}'
               readinessProbe:
-                tcpSocket:
-                  port: 80
-                initialDelaySeconds: 5
+                timeoutSeconds: '{{ drupal_readinessProbe_timeoutSeconds }}'
+                initialDelaySeconds: '{{ drupal_readinessProbe_initialDelaySeconds }}'
+                periodSeconds: '{{ drupal_readinessProbe_periodSeconds }}'
+                exec:
+                  command:
+                  - /bin/sh
+                  - -c
+                  - until ls {{ drupal_root }}/startup.sh; do echo waiting for startup.sh; sleep 1; done; {{ drupal_root }}/startup.sh;
+              env:
+                - name: DRUPAL_LOCALE
+                  value: '{{ drupal_locale }}'
+                - name: MYSQL_DATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: '{{ meta.name }}.drupal-secrets'
+                      key: db_database
+                - name: MYSQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: '{{ meta.name }}.drupal-secrets'
+                      key: db_user
+                - name: MYSQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: '{{ meta.name }}.drupal-secrets'
+                      key: db_password
+                - name: DRUPAL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: '{{ meta.name }}.drupal-secrets'
+                      key: user
+                - name: DRUPAL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: '{{ meta.name }}.drupal-secrets'
+                      key: password                      
               volumeMounts:
               - mountPath: '{{ drupal_web_root }}/sites/default/settings.php'
                 subPath: settings.php
                 name: drupal-settings
+              - mountPath: '{{ drupal_root }}/startup.sh'
+                subPath: startup.sh
+                name: drupal-startup  
               - mountPath: '{{ drupal_web_root }}/sites/default/files/'
                 name: drupal-files
             imagePullSecrets:
@@ -151,6 +191,10 @@
             - name: drupal-settings
               configMap:
                 name: '{{ meta.name }}-drupal-config'
+            - name: drupal-startup
+              configMap:
+                name: '{{ meta.name }}-drupal-startup'
+                defaultMode: 0777
             - name: drupal-files
               persistentVolumeClaim:
                 claimName: '{{ meta.name }}-files-pvc'
@@ -338,8 +382,8 @@
                   - '{{ drupal_cron_shell }}'
                   - -c
                   - '{{ drupal_cron_args }}'
-                  imagePullPolicy: '{{ drupal_image_pull_policy | default("Always") }}'
-                  image: '{{ drupal_image | default("drupal:8.7-apache") }}'
+                  imagePullPolicy: '{{ drupal_image_pull_policy }}'
+                  image: '{{ drupal_image }}'
                   ports:
                     - containerPort: 80
                   livenessProbe:
@@ -382,6 +426,7 @@
         aws_access_key: '{{ aws_access_key | b64encode }}'
         aws_secret_access_key: '{{ aws_secret_access_key | b64encode }}'
         backup_endpoint: '{{ backup_endpoint | b64encode }}'
+
 - name: automatic db backup
   when:
     - auto_backup is defined
@@ -393,7 +438,7 @@
         name: '{{ meta.name }}-auto-db-backup'
         namespace: '{{ meta.namespace }}'
       spec:
-        schedule: "*/1 * * * *"
+        schedule: '{{ backup_cron_schedule }}'
         jobTemplate:
           spec:
             template:
@@ -444,6 +489,3 @@
                           name: '{{ meta.name }}.drupal-secrets'
                           key: db_password
                 restartPolicy: Never
-- name: Debug vars
-  debug:
-    msg: 'Auto backup: {{ auto_backup }} Site: {{ meta.name }}. S3 endpoint: {{ backup_endpoint }} {{ aws_access_key }}'

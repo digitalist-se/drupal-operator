@@ -83,3 +83,6 @@ For more information about how to use the Drupal Operator, see the [docs](docs/R
 
 The Drupal operator is part of digitalists offering [ozzi.io](https://www.ozzi.io/)
 
+## For backups:
+An S3 backup cronjob is built in, if you activate it, but for better control of backups, you could use something like this:
+For better control of backups, you could use something like https://blah.cloud/automation/using-velero-for-k8s-backup-and-restore-of-csi-volumes/
