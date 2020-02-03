@@ -147,7 +147,7 @@
                   command:
                   - /bin/sh
                   - -c
-                  - until ls {{ drupal_root }}/startup.sh; do echo waiting for startup.sh; sleep 1; done; {{ drupal_root }}/startup.sh;
+                  - until ls {{ drupal_root }}/startup.sh; do echo waiting for startup.sh; sleep 1; done; chown www-data:www-data  {{ drupal_root }}/startup.sh;
               env:
                 - name: DRUPAL_LOCALE
                   value: '{{ drupal_locale }}'
