@@ -1,6 +1,6 @@
 ---
 - name: Drupal Settings
-  k8s:
+  k8s_raw:
     definition:
         kind: ConfigMap
         apiVersion: v1
@@ -15,7 +15,7 @@
           settings.php: '{{ drupal_settings_php }}'
 
 - name: Drupal startup
-  k8s:
+  k8s_raw:
     definition:
         kind: ConfigMap
         apiVersion: v1
@@ -119,8 +119,20 @@
             - name: init-db
               when: no_db is not defined
               image: busybox:1.28
-              command: ['sh', '-c', "until nslookup '{{ meta.name }}-db'; do echo waiting for '{{ meta.name }}-db'; sleep 2; done;"]            
-            containers:
+              command: ['sh', '-c', "until nslookup '{{ meta.name }}-db'; do echo waiting for '{{ meta.name }}-db'; sleep 2; done;"]
+            - name: init-drupal
+              image: '{{ drupal_image }}'
+              command: ['sh', '-c', 'cp /scripts/settings.php /pre-scripts/settings.php && cp /scripts/startup.sh /pre-scripts/startup.sh && chown -R www-data:www-data -R /pre-scripts']
+              volumeMounts:
+              - mountPath: '/scripts/startup.sh'
+                subPath: startup.sh
+                name: drupal-startup
+              - mountPath: '/scripts/settings.php'
+                subPath: settings.php
+                name: drupal-settings
+              - name: pre-scripts
+                mountPath: /pre-scripts
+            containers:    
             - name: '{{ drupal_name }}'
               imagePullPolicy: '{{ drupal_image_pull_policy }}'
               image: '{{ drupal_image }}'
@@ -147,7 +159,7 @@
                   command:
                   - /bin/sh
                   - -c
-                  - until ls {{ drupal_root }}/startup.sh; do echo waiting for startup.sh; sleep 1; done; chown www-data:www-data  {{ drupal_root }}/startup.sh;
+                  - cp /pre-scripts/settings.php {{ drupal_web_root }}/sites/default/settings.php && cp /pre-scripts/startup.sh {{ drupal_root }}/startup.sh && chmod 777 {{ drupal_root }}/startup.sh && chown -R www-data:www-data {{ drupal_web_root }} && {{ drupal_root }}/startup.sh;
               env:
                 - name: DRUPAL_LOCALE
                   value: '{{ drupal_locale }}'
@@ -177,14 +189,10 @@
                       name: '{{ meta.name }}.drupal-secrets'
                       key: password                      
               volumeMounts:
-              - mountPath: '{{ drupal_web_root }}/sites/default/settings.php'
-                subPath: settings.php
-                name: drupal-settings
-              - mountPath: '{{ drupal_root }}/startup.sh'
-                subPath: startup.sh
-                name: drupal-startup  
               - mountPath: '{{ drupal_web_root }}/sites/default/files/'
                 name: drupal-files
+              - mountPath: /pre-scripts
+                name: pre-scripts
             imagePullSecrets:
               - name:  '{{ drupal_image_reg_secret }}'
             volumes:
@@ -194,7 +202,8 @@
             - name: drupal-startup
               configMap:
                 name: '{{ meta.name }}-drupal-startup'
-                defaultMode: 0777
+            - name: pre-scripts
+              emptyDir: {}
             - name: drupal-files
               persistentVolumeClaim:
                 claimName: '{{ meta.name }}-files-pvc'
