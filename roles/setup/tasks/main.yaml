@@ -454,28 +454,43 @@
               spec:
                 containers:
                 - name: auto-db-backup
-                  image: schickling/mysql-backup-s3
+                  image: ozziio/mysql-backup-s3
                   imagePullPolicy: Always
                   env:
                     - name: S3_ACCESS_KEY_ID
                       valueFrom:
                         secretKeyRef:
-                          name: '{{ meta.name }}-auto-db-backup-secret'
+                          name: 'auto-db-backup-secret'
                           key: aws_access_key
                     - name: S3_SECRET_ACCESS_KEY
                       valueFrom:
                         secretKeyRef:
-                          name: '{{ meta.name }}-auto-db-backup-secret'
+                          name: 'auto-db-backup-secret'
                           key: aws_secret_access_key
                     - name: S3_REGION
-                      value: us-east-1
-                    - name: S3_BUCKET
-                      value: sobi-backups                        
-                    - name: S3_ENDPOINT
                       valueFrom:
                         secretKeyRef:
-                          name: '{{ meta.name }}-auto-db-backup-secret'
-                          key: backup_endpoint
+                          name: 'auto-db-backup-secret'
+                          key: region
+                          optional: true
+                    - name: S3_BUCKET
+                      valueFrom:
+                        secretKeyRef:
+                          name: 'auto-db-backup-secret'
+                          key: bucket                       
+                    - name: S3_ENDPOINT
+                      optional: 1
+                      valueFrom:
+                        secretKeyRef:
+                          name: 'auto-db-backup-secret'
+                          key: endpoint
+                          optional: true
+                    - name: DEBUG
+                      valueFrom:
+                        secretKeyRef:
+                          name: 'auto-db-backup-secret'
+                          key: debug
+                          optional: true      
                     - name: S3_PREFIX
                       value: '{{ meta.name }}'
                     - name: MYSQL_HOST

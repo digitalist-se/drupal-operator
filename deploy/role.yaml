@@ -14,6 +14,7 @@ rules:
   - services
   - endpoints
   - persistentvolumeclaims
+  - persistentvolumes
   - events
   - configmaps
   - secrets
@@ -42,6 +43,12 @@ rules:
   - secrets
   verbs:
   - '*'
+- apiGroups:
+  - apps
+  resources:
+  - replicasets
+  verbs:
+  - get
 - apiGroups:
   - monitoring.coreos.com
   resources:
