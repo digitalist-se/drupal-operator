@@ -1,6 +1,7 @@
 ---
 - name: Drupal Settings
-  k8s_raw:
+  k8s:
+    state: present
     definition:
         kind: ConfigMap
         apiVersion: v1
@@ -13,9 +14,8 @@
             drupal: '{{ meta.name }}'
         data:
           settings.php: '{{ drupal_settings_php }}'
-
 - name: Drupal startup
-  k8s_raw:
+  k8s:
     definition:
         kind: ConfigMap
         apiVersion: v1
@@ -28,27 +28,9 @@
             drupal: '{{ meta.name }}'
         data:
           startup.sh: '{{ drupal_startup }}'
-      
-# Could be useful later
-- name: Shared config
-  k8s_raw:
-    definition:
-      kind: ConfigMap
-      apiVersion: v1
-      metadata:
-        name: '{{ meta.name }}-shared-config'
-        namespace: '{{ meta.namespace }}'
-        labels:
-          app: drupal
-          site: '{{ meta.name }}'
-          drupal: '{{ meta.name }}'
-      data:
-        meta-name: '{{ meta.name }}'
-        meta-namespace: '{{ meta.namespace }}'
-        db-host: '{{ meta.name }}-db'
 
 - name: Files PVC
-  k8s_raw:
+  k8s:
     definition:
       kind: PersistentVolumeClaim
       apiVersion: v1
@@ -69,7 +51,7 @@
 
 - name: Mariadb PVC
   when: no_db is not defined
-  k8s_raw:
+  k8s:
     definition:
       kind: PersistentVolumeClaim
       apiVersion: v1
@@ -89,7 +71,7 @@
             storage: '{{ db_pvc_size }}'
 
 - name: Drupal
-  k8s_raw:
+  k8s:
     definition:
       kind: Deployment
       apiVersion: apps/v1
@@ -102,7 +84,7 @@
           type: RollingUpdate
           rollingUpdate:
             maxSurge: 1
-            maxUnavailable: 1
+            maxUnavailable: 25%
         selector:
           matchLabels:
             drupal: '{{ meta.name }}'
@@ -122,7 +104,47 @@
               command: ['sh', '-c', "until nslookup '{{ meta.name }}-db'; do echo waiting for '{{ meta.name }}-db'; sleep 2; done;"]
             - name: init-drupal
               image: '{{ drupal_image }}'
-              command: ['sh', '-c', 'cp /scripts/settings.php /pre-scripts/settings.php && cp /scripts/startup.sh /pre-scripts/startup.sh && chown -R www-data:www-data -R /pre-scripts']
+              env:
+                - name: DRUPAL_LOCALE
+                  value: '{{ drupal_locale }}'
+                - name: DRUPAL_LOCALE
+                  value: '{{ drupal_locale }}'  
+                - name: MYSQL_DATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: '{{ meta.name }}.drupal-secrets'
+                      key: db_database
+                - name: MYSQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: '{{ meta.name }}.drupal-secrets'
+                      key: db_user
+                - name: MYSQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: '{{ meta.name }}.drupal-secrets'
+                      key: db_password
+                - name: DRUPAL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: '{{ meta.name }}.drupal-secrets'
+                      key: user
+                - name: DRUPAL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: '{{ meta.name }}.drupal-secrets'
+                      key: password  
+              command: 
+              - /bin/sh 
+              - -c
+              - cp /scripts/settings.php /pre-scripts/settings.php;
+                cp /scripts/startup.sh /pre-scripts/startup.sh;
+                chown -R www-data:www-data -R /pre-scripts;
+                cp /pre-scripts/settings.php {{ drupal_web_root }}/sites/default/settings.php;
+                cp /pre-scripts/startup.sh {{ drupal_root }}/startup.sh; 
+                chmod 777 {{ drupal_root }}/startup.sh; 
+                chown -R www-data:www-data {{ drupal_web_root }};
+                {{ drupal_root }}/startup.sh
               volumeMounts:
               - mountPath: '/scripts/startup.sh'
                 subPath: startup.sh
@@ -132,8 +154,17 @@
                 name: drupal-settings
               - name: pre-scripts
                 mountPath: /pre-scripts
+              - mountPath: '{{ drupal_web_root }}/sites/default/files/'
+                name: drupal-files  
             containers:    
             - name: '{{ drupal_name }}'
+              lifecycle:
+                postStart:
+                  exec:
+                    command: 
+                    - /bin/sh
+                    - -c 
+                    - cp /pre-scripts/settings.php {{ drupal_web_root }}/sites/default/settings.php;
               imagePullPolicy: '{{ drupal_image_pull_policy }}'
               image: '{{ drupal_image }}'
               resources:
@@ -151,15 +182,6 @@
                 initialDelaySeconds: '{{ drupal_livenessProbe_initialDelaySeconds }}'
                 periodSeconds: '{{ drupal_livenessProbe_periodSeconds }}'
                 timeoutSeconds: '{{ drupal_livenessProbe_timeoutSeconds }}'
-              readinessProbe:
-                timeoutSeconds: '{{ drupal_readinessProbe_timeoutSeconds }}'
-                initialDelaySeconds: '{{ drupal_readinessProbe_initialDelaySeconds }}'
-                periodSeconds: '{{ drupal_readinessProbe_periodSeconds }}'
-                exec:
-                  command:
-                  - /bin/sh
-                  - -c
-                  - cp /pre-scripts/settings.php {{ drupal_web_root }}/sites/default/settings.php && cp /pre-scripts/startup.sh {{ drupal_root }}/startup.sh && chmod 777 {{ drupal_root }}/startup.sh && chown -R www-data:www-data {{ drupal_web_root }} && {{ drupal_root }}/startup.sh;
               env:
                 - name: DRUPAL_LOCALE
                   value: '{{ drupal_locale }}'
@@ -208,7 +230,7 @@
               persistentVolumeClaim:
                 claimName: '{{ meta.name }}-files-pvc'
 - name: Drupal secrets
-  k8s_raw:
+  k8s:
     definition:
       apiVersion: v1
       kind: Secret
@@ -229,7 +251,7 @@
 
 - name: Mariadb secrets
   when: no_db is not defined
-  k8s_raw:
+  k8s:
     definition:
       apiVersion: v1
       kind: Secret
@@ -245,7 +267,7 @@
         root_password: '{{ mysql_root_password | b64encode }}'
 - name: Mariadb
   when: no_db is not defined
-  k8s_raw:
+  k8s:
     definition:
       kind: StatefulSet
       apiVersion: apps/v1
@@ -302,7 +324,7 @@
 
 - name: Mariadb Nodeport
   when: no_db is not defined or no_db_nodeport is defined
-  k8s_raw:
+  k8s:
     definition:
       kind: Service
       apiVersion: v1
@@ -323,7 +345,7 @@
 - name: Drupal Nodeport
   when: 
     - no_drupal_nodeport is not defined
-  k8s_raw:
+  k8s:
     definition:
       kind: Service
       apiVersion: v1
@@ -345,7 +367,7 @@
   when: 
     - drupal_loadbalancer is defined
     - drupal_loadbalancer
-  k8s_raw:
+  k8s:
     definition:
       kind: Service
       apiVersion: v1
@@ -363,83 +385,83 @@
         selector:
           drupal: '{{ meta.name }}'
 
-- name: Drupal cron
-  when:
-    - drupal_cron is defined
-    - drupal_cron
-  k8s_raw:
-    definition:
-      kind: CronJob
-      apiVersion: batch/v1beta1
-      metadata:
-        name: '{{ meta.name }}-drupal-cron'
-        namespace: '{{ meta.namespace }}'
-      spec:
-        schedule: '{{ drupal_cron_schedule }}'
-        concurrencyPolicy: '{{ drupal_cron_concurrencyPolicy }}'
-        successfulJobsHistoryLimit: '{{ drupal_cron_successfulJobsHistoryLimit }}'
-        failedJobsHistoryLimit: '{{ drupal_cron_failedJobsHistoryLimit }}'
-        jobTemplate:
-          spec:
-            activeDeadlineSeconds: '{{ drupal_cron_activeDeadlineSeconds }}'
-            template:
-              spec:
-                restartPolicy: '{{ drupal_cron_restartPolicy }}'
-                containers:
-                - name: drupal-cron
-                  args:
-                  - '{{ drupal_cron_shell }}'
-                  - -c
-                  - '{{ drupal_cron_args }}'
-                  imagePullPolicy: '{{ drupal_image_pull_policy }}'
-                  image: '{{ drupal_image }}'
-                  ports:
-                    - containerPort: 80
-                  livenessProbe:
-                    tcpSocket:
-                      port: 80
-                    initialDelaySeconds: 5
-                  readinessProbe:
-                    tcpSocket:
-                      port: 80
-                    initialDelaySeconds: 5
-                  volumeMounts:
-                  - mountPath: '{{ drupal_web_root }}/sites/default/settings.php'
-                    subPath: settings.php
-                    name: drupal-settings
-                  - mountPath: '{{ drupal_web_root }}/sites/default/files/'
-                    name: drupal-files
-                imagePullSecrets:
-                  - name:  '{{ drupal_image_reg_secret }}'
-                volumes:
-                - name: drupal-settings
-                  configMap:
-                    name: '{{ meta.name }}-drupal-config'
-                - name: drupal-files
-                  persistentVolumeClaim:
-                    claimName: '{{ meta.name }}-files-pvc'
+# - name: Drupal cron
+#   when:
+#     - drupal_cron is defined
+#     - drupal_cron
+#   k8s_raw:
+#     definition:
+#       kind: CronJob
+#       apiVersion: batch/v1beta1
+#       metadata:
+#         name: '{{ meta.name }}-drupal-cron'
+#         namespace: '{{ meta.namespace }}'
+#       spec:
+#         schedule: '{{ drupal_cron_schedule }}'
+#         concurrencyPolicy: '{{ drupal_cron_concurrencyPolicy }}'
+#         successfulJobsHistoryLimit: '{{ drupal_cron_successfulJobsHistoryLimit }}'
+#         failedJobsHistoryLimit: '{{ drupal_cron_failedJobsHistoryLimit }}'
+#         jobTemplate:
+#           spec:
+#             activeDeadlineSeconds: '{{ drupal_cron_activeDeadlineSeconds }}'
+#             template:
+#               spec:
+#                 restartPolicy: '{{ drupal_cron_restartPolicy }}'
+#                 containers:
+#                 - name: drupal-cron
+#                   args:
+#                   - '{{ drupal_cron_shell }}'
+#                   - -c
+#                   - '{{ drupal_cron_args }}'
+#                   imagePullPolicy: '{{ drupal_image_pull_policy }}'
+#                   image: '{{ drupal_image }}'
+#                   ports:
+#                     - containerPort: 80
+#                   livenessProbe:
+#                     tcpSocket:
+#                       port: 80
+#                     initialDelaySeconds: 5
+#                   readinessProbe:
+#                     tcpSocket:
+#                       port: 80
+#                     initialDelaySeconds: 5
+#                   volumeMounts:
+#                   - mountPath: '{{ drupal_web_root }}/sites/default/settings.php'
+#                     subPath: settings.php
+#                     name: drupal-settings
+#                   - mountPath: '{{ drupal_web_root }}/sites/default/files/'
+#                     name: drupal-files
+#                 imagePullSecrets:
+#                   - name:  '{{ drupal_image_reg_secret }}'
+#                 volumes:
+#                 - name: drupal-settings
+#                   configMap:
+#                     name: '{{ meta.name }}-drupal-config'
+#                 - name: drupal-files
+#                   persistentVolumeClaim:
+#                     claimName: '{{ meta.name }}-files-pvc'
 
-- name: automatic db backup secret
-  when:
-    - auto_backup is defined
-    - auto_backup
-  k8s_raw:
-    definition:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: '{{ meta.name }}-auto-db-backup-secret'
-        namespace: '{{ meta.namespace }}'
-      type: Opaque
-      data:
-        aws_access_key: '{{ aws_access_key | b64encode }}'
-        aws_secret_access_key: '{{ aws_secret_access_key | b64encode }}'
-        backup_endpoint: '{{ backup_endpoint | b64encode }}'
+# - name: automatic db backup secret
+#   when:
+#     - auto_backup is defined
+#     - auto_backup
+#   k8s_raw:
+#     definition:
+#       apiVersion: v1
+#       kind: Secret
+#       metadata:
+#         name: '{{ meta.name }}-auto-db-backup-secret'
+#         namespace: '{{ meta.namespace }}'
+#       type: Opaque
+#       data:
+#         aws_access_key: '{{ aws_access_key | b64encode }}'
+#         aws_secret_access_key: '{{ aws_secret_access_key | b64encode }}'
+#         backup_endpoint: '{{ backup_endpoint | b64encode }}'
 
 - name: automatic db backup
   when:
     - auto_backup is defined
-  k8s_raw:
+  k8s:
     definition:
       apiVersion: batch/v1beta1
       kind: CronJob
@@ -455,7 +477,7 @@
                 containers:
                 - name: auto-db-backup
                   image: ozziio/mysql-backup-s3
-                  imagePullPolicy: Always
+                  imagePullPolicy: IfNotPresent
                   env:
                     - name: S3_ACCESS_KEY_ID
                       valueFrom:

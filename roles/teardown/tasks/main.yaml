@@ -1,0 +1,154 @@
+# - name: automatic db backup
+#   k8s:
+#     definition:
+#       apiVersion: batch/v1beta1
+#       kind: CronJob
+#       metadata:
+#         name: '{{ meta.name }}-teardown-backup'
+#         namespace: '{{ meta.namespace }}'
+#       spec:
+#         schedule: '* * * * *'
+#         jobTemplate:
+#           spec:
+#             template:
+#               spec:
+#                 containers:
+#                 - name: auto-db-backup
+#                   image: ozziio/mysql-backup-s3
+#                   imagePullPolicy: IfNotPresent
+#                   env:
+#                     - name: S3_ACCESS_KEY_ID
+#                       valueFrom:
+#                         secretKeyRef:
+#                           name: 'auto-db-backup-secret'
+#                           key: aws_access_key
+#                     - name: S3_SECRET_ACCESS_KEY
+#                       valueFrom:
+#                         secretKeyRef:
+#                           name: 'auto-db-backup-secret'
+#                           key: aws_secret_access_key
+#                     - name: S3_REGION
+#                       valueFrom:
+#                         secretKeyRef:
+#                           name: 'auto-db-backup-secret'
+#                           key: region
+#                           optional: true
+#                     - name: S3_BUCKET
+#                       valueFrom:
+#                         secretKeyRef:
+#                           name: 'auto-db-backup-secret'
+#                           key: bucket                       
+#                     - name: S3_ENDPOINT
+#                       optional: 1
+#                       valueFrom:
+#                         secretKeyRef:
+#                           name: 'auto-db-backup-secret'
+#                           key: endpoint
+#                           optional: true
+#                     - name: DEBUG
+#                       valueFrom:
+#                         secretKeyRef:
+#                           name: 'auto-db-backup-secret'
+#                           key: debug
+#                           optional: true      
+#                     - name: S3_PREFIX
+#                       value: '{{ meta.name }}'
+#                     - name: MYSQL_HOST
+#                       value: '{{ meta.name }}-db'
+#                     - name: MYSQL_PORT
+#                       value: "3306"
+#                     - name: MYSQLDUMP_DATABASE
+#                       valueFrom:
+#                         secretKeyRef:
+#                           name: '{{ meta.name }}.drupal-secrets'
+#                           key: db_database
+#                     - name: MYSQL_USER
+#                       valueFrom:
+#                         secretKeyRef:
+#                           name: '{{ meta.name }}.drupal-secrets'
+#                           key: db_user
+#                     - name: MYSQL_PASSWORD
+#                       valueFrom:
+#                         secretKeyRef:
+#                           name: '{{ meta.name }}.drupal-secrets'
+#                           key: db_password
+#                 restartPolicy: Never
+
+# - name: test-y
+#   k8s:
+#     definition:
+#       kind: Deployment
+#       apiVersion: apps/v1
+#       metadata:
+#         name: '{{ meta.name }}-db-backup'
+#         namespace: '{{ meta.namespace }}'
+#       spec:
+#         replicas: 1
+#         template:
+#           metadata:
+#             labels:
+#               name: '{{ meta.name }}-db-backup'
+#         selector:
+#           matchLabels:
+#             name: '{{ meta.name }}-db-backup'
+#         containers:
+#         - name: auto-db-backup
+#           image: ozziio/mysql-backup-s3
+#           imagePullPolicy: IfNotPresent
+#           env:
+#             - name: S3_ACCESS_KEY_ID
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: 'auto-db-backup-secret'
+#                   key: aws_access_key
+#             - name: S3_SECRET_ACCESS_KEY
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: 'auto-db-backup-secret'
+#                   key: aws_secret_access_key
+#             - name: S3_REGION
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: 'auto-db-backup-secret'
+#                   key: region
+#                   optional: true
+#             - name: S3_BUCKET
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: 'auto-db-backup-secret'
+#                   key: bucket                       
+#             - name: S3_ENDPOINT
+#               optional: 1
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: 'auto-db-backup-secret'
+#                   key: endpoint
+#                   optional: true
+#             - name: DEBUG
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: 'auto-db-backup-secret'
+#                   key: debug
+#                   optional: true      
+#             - name: S3_PREFIX
+#               value: '{{ meta.name }}'
+#             - name: MYSQL_HOST
+#               value: '{{ meta.name }}-db'
+#             - name: MYSQL_PORT
+#               value: "3306"
+#             - name: MYSQLDUMP_DATABASE
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: '{{ meta.name }}.drupal-secrets'
+#                   key: db_database
+#             - name: MYSQL_USER
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: '{{ meta.name }}.drupal-secrets'
+#                   key: db_user
+#             - name: MYSQL_PASSWORD
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: '{{ meta.name }}.drupal-secrets'
+#                   key: db_password
+#         restartPolicy: "Never"

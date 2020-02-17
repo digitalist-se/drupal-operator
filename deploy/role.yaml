@@ -36,6 +36,7 @@ rules:
   - apps
   - batch
   resources:
+  - pods
   - deployments
   - daemonsets
   - replicasets

@@ -3,3 +3,10 @@
   group: ozzi.io
   kind: Drupal
   playbook: /opt/ansible/playbook.yaml
+  reconcilePeriod: 0
+  watchDependentResources: true
+ # finalizer:
+ #    name: finalizer.ozzi.io
+  #   role: /opt/ansible/roles/teardown
+ #    vars:
+  #     state: absent
