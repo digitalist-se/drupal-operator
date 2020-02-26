@@ -14,6 +14,7 @@
             drupal: '{{ meta.name }}'
         data:
           settings.php: '{{ drupal_settings_php }}'
+
 - name: Drupal startup
   k8s:
     definition:
@@ -137,7 +138,8 @@
               command: 
               - /bin/sh 
               - -c
-              - cp /scripts/settings.php /pre-scripts/settings.php;
+              - while [ ! -f /scripts/settings.php ]; do echo waiting; sleep 2; done;
+                cp /scripts/settings.php /pre-scripts/settings.php;
                 cp /scripts/startup.sh /pre-scripts/startup.sh;
                 chown -R www-data:www-data -R /pre-scripts;
                 cp /pre-scripts/settings.php {{ drupal_web_root }}/sites/default/settings.php;
@@ -164,7 +166,7 @@
                     command: 
                     - /bin/sh
                     - -c 
-                    - cp /pre-scripts/settings.php {{ drupal_web_root }}/sites/default/settings.php;
+                    - while [ ! -f /pre-scripts/settings.php ]; do echo waiting; sleep 2; done && cp /pre-scripts/settings.php {{ drupal_web_root }}/sites/default/settings.php;
               imagePullPolicy: '{{ drupal_image_pull_policy }}'
               image: '{{ drupal_image }}'
               resources:
@@ -229,6 +231,7 @@
             - name: drupal-files
               persistentVolumeClaim:
                 claimName: '{{ meta.name }}-files-pvc'
+
 - name: Drupal secrets
   k8s:
     definition:
@@ -265,6 +268,7 @@
       type: Opaque
       data:
         root_password: '{{ mysql_root_password | b64encode }}'
+
 - name: Mariadb
   when: no_db is not defined
   k8s:
@@ -323,7 +327,7 @@
                   claimName: '{{ meta.name }}-db-pvc'
 
 - name: Mariadb Nodeport
-  when: no_db is not defined or no_db_nodeport is defined
+  when: no_db is not defined
   k8s:
     definition:
       kind: Service
@@ -365,7 +369,6 @@
 
 - name: Drupal Loadbalancer
   when: 
-    - drupal_loadbalancer is defined
     - drupal_loadbalancer
   k8s:
     definition:
@@ -535,3 +538,25 @@
                           name: '{{ meta.name }}.drupal-secrets'
                           key: db_password
                 restartPolicy: Never
+
+- name: Drupal Ingress
+  when: 
+    - drupal_loadbalancer
+  k8s:
+    definition:
+      apiVersion: extensions/v1beta1
+      kind: Ingress
+      metadata:
+        name: '{{ meta.name }}'
+        namespace: '{{ meta.namespace }}'
+        annotations:
+          nginx.org/proxy-connect-timeout: "30s"
+          nginx.org/proxy-read-timeout: "20s"
+          nginx.org/client-max-body-size: "20m"
+          nnginx.org/proxy-hide-headers: "X-Powered-By, X-Generator"
+      spec:
+        rules:
+          - host: '{{ drupal_hostname }}'
+        backend:
+          serviceName: '{{ meta.name }}-lb'
+          servicePort: 80

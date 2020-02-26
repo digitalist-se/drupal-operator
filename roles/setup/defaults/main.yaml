@@ -1,6 +1,8 @@
 ---
   drupal_operator_image: ozziio/drupal-operator:v0.0.2
   auto_backup: false
+  drupal_nodeport: true
+  drupal_loadbalancer: true
   backup_endpoint: '**None**'
   backup_cron_schedule: '0 3 * * *'
   mysql_root_password: root
@@ -61,15 +63,44 @@
         $config['locale.settings']['translation']['path'] = '{{ drupal_translation_path }}';
         {{ drupal_extra_config }}
   drush_path: /var/www/vendor/bin/drush
+  install_path: /var/www/html/sites
   aws_access_key: minio
   aws_secret_access_key: minio123
   files_pvc: default
-  files_pvc_size: 1Gi
-  files_accessmode: ReadWriteOnce
+  files_pvc_size: 250M
+  files_accessmode: ReadWriteMany
   db_pvc: default
-  db_pvc_size: 1Gi
+  db_pvc_size: 250M
+  drupal_profile: sobi
   drupal_startup: |-
     #!/bin/bash
-    echo "drupal started" 
+    DRUSH='{{ drush_path }}'
+    INSTALLPATH='{{ install_path }}'
+    STATFILE='/var/www/webroot/web/sites/default/files/install.log'
+    install_drupal() {
+      cd $INSTALLPATH
+      echo "change file permissions"
+      chown www-data:www-data -R default/files
+      echo "install drupal"
+      $DRUSH si '{{ drupal_profile }}' -y --account-name=${DRUPAL_USER} --account-pass=${DRUPAL_PASSWORD}
+      echo "foo" 2>&1 /dev/stdout
+      $DRUSH cim --partial -y
+      $DRUSH csex basic_site_settings -y 
+      $DRUSH cim -y
+      touch $STATFILE
+    }
+    if [ -f "$STATFILE" ];then
+      cd $INSTALLPATH
+      $DRUSH status bootstrap | grep -q $($DRUSH php-eval 'if (function_exists("t")) echo t("Successful");') &> /dev/null;
+      if [ $? = 0 ];then
+        cd $INSTALLPATH
+        $DRUSH updb -y
+      else
+        install_drupal
+      fi
+    else
+      install_drupal
+    fi
+
 
  

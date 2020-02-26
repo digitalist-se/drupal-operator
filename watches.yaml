@@ -3,8 +3,10 @@
   group: ozzi.io
   kind: Drupal
   playbook: /opt/ansible/playbook.yaml
-  reconcilePeriod: 0
   watchDependentResources: true
+  maxRunnerArtifacts: 30
+  reconcilePeriod: 5s
+  manageStatus: False
  # finalizer:
  #    name: finalizer.ozzi.io
   #   role: /opt/ansible/roles/teardown

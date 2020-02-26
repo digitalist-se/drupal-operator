@@ -42,6 +42,7 @@ rules:
   - replicasets
   - statefulsets
   - secrets
+  - ingresses
   verbs:
   - '*'
 - apiGroups:

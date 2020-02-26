@@ -12,39 +12,39 @@ spec:
       labels:
         name: drupal-operator
       annotations:
-        kubernetes.io/change-cause: bar
+        kubernetes.io/change-cause: more fosss
     spec:
       serviceAccountName: drupal-operator
       containers:
-        # - name: ansible
-        #   resources:
-        #     requests:
-        #       memory: "64Mi"
-        #       cpu: "250m"
-        #     limits:
-        #       memory: "256Mi"
-        #       cpu: "500m"
-        #   command:
-        #   - /usr/local/bin/ao-logs
-        #   - /tmp/ansible-operator/runner
-        #   - stdout
-        #   image: "ozziio/drupal-operator:v0.0.2"
-        #   imagePullPolicy: "Always"
-        #   env:
-        #     - name: WATCH_NAMESPACE
-        #       valueFrom:
-        #         fieldRef:
-        #           fieldPath: metadata.namespace
-        #     - name: POD_NAME
-        #       valueFrom:
-        #         fieldRef:
-        #           fieldPath: metadata.name
-        #     - name: OPERATOR_NAME
-        #       value: "drupal-operator"
-        #   volumeMounts:
-        #   - mountPath: /tmp/ansible-operator/runner
-        #     name: runner
-        #     readOnly: true
+          # - name: ansible
+          #   resources:
+          #     requests:
+          #       memory: "64Mi"
+          #       cpu: "250m"
+          #     limits:
+          #       memory: "256Mi"
+          #       cpu: "500m"
+          #   command:
+          #   - /usr/local/bin/ao-logs
+          #   - /tmp/ansible-operator/runner
+          #   - stdout
+          #   image: "ozziio/drupal-operator:v0.0.2"
+          #   imagePullPolicy: "Always"
+          #   env:
+          #     - name: WATCH_NAMESPACE
+          #       valueFrom:
+          #         fieldRef:
+          #           fieldPath: metadata.namespace
+          #     - name: POD_NAME
+          #       valueFrom:
+          #         fieldRef:
+          #           fieldPath: metadata.name
+          #     - name: OPERATOR_NAME
+          #       value: "drupal-operator"
+          #   volumeMounts:
+          #   - mountPath: /tmp/ansible-operator/runner
+          #     name: runner
+          #     readOnly: true
         - name: operator
           resources:
             requests:
