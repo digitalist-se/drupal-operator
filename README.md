@@ -1,18 +1,14 @@
-# Drupal Operator (ozziio/drupal-operator)[https://hub.docker.com/r/ozziio/drupal-operator]
+# Drupal Operator 
 
-The Drupal operator is part of digitalists offering [ozzi.io](https://www.ozzi.io/).
 
-[[TOC]]
 
 ## Acknowledgements
 
-This is a fork of <https://github.com/thom8/drupal-operator>.
-
-This fork adds some new settings and possibilities, to make it more granular in it's approach, and also adds the possibility to use images from private docker repositories.
+This started as inspired from <https://github.com/thom8/drupal-operator> and https://github.com/geerlingguy/drupal-operator
 
 ## Prerequisites
 
-To work with this operator you need a Kubernetes cluster (tested on 1.17). Working with the examples in this operator you could use microk8s or minikube or something else for local development. Or you could have a production cluster - but please note that this is in alpha stage and not recommended for production use yet.
+To work with this operator you need a Kubernetes cluster. Working with the examples in this operator you could use microk8s or minikube or something else for local development. Or you could have a production cluster - but please note that this is in alpha stage and not recommended for production use yet.
 
 
 ## Install Operator
@@ -67,7 +63,7 @@ For better control of backups, you could use something like https://blah.cloud/a
 
 # Developing the Drupal operator
 
-Currently using 1.12 of the operator-sdk.
+Currently using 1.13 of the operator-sdk.
 
 Follow the installation guide in the official docs
 for the (operator-sdk)[https://sdk.operatorframework.io/docs/building-operators/ansible/].
