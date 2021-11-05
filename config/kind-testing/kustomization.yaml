@@ -1,0 +1,24 @@
+# Adds namespace to all resources.
+namespace: default
+
+namePrefix: osdk-
+
+# Labels to add to all resources and selectors.
+#commonLabels:
+#  someName: someValue
+
+# Set the image to use in testing here
+# Needs to be IfNotPresent or Never to use with 'kind load' and image_name:latest tag format.
+patchesStrategicMerge:
+- debug_logs_patch.yaml
+- ../default/manager_auth_proxy_patch.yaml
+- resources_patch.yaml
+- manager_image.yaml
+- pull_policy/IfNotPresent.yaml
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ../rbac
+- ../manager
+- secrets

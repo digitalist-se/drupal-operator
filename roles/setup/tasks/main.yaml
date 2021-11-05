@@ -1,0 +1,537 @@
+---
+#- name: debug
+#  debug:
+#   # This shows the whole custom resource as it is sent to ansible
+#     msg: '{{ _ozzi_io_drupal }}'
+#  changed_when: False
+- name: Drupal Settings (mariadb)
+  when:
+    - postgres == false
+  community.kubernetes.k8s:
+    state: present
+    definition:
+      kind: ConfigMap
+      apiVersion: v1
+      metadata:
+        name: "{{ ansible_operator_meta.name }}-drupal-config"
+        namespace: "{{ ansible_operator_meta.namespace }}"
+        labels:
+          app: drupal
+          site: "{{ ansible_operator_meta.name }}"
+          drupal: "{{ ansible_operator_meta.name }}"
+      data:
+        settings.php: "{{ drupal_settings_php }}"
+
+- name: Drupal Settings (postgres)
+  when:
+    - postgres == true
+  community.kubernetes.k8s:
+    state: present
+    definition:
+      kind: ConfigMap
+      apiVersion: v1
+      metadata:
+        name: "{{ ansible_operator_meta.name }}-drupal-config"
+        namespace: "{{ ansible_operator_meta.namespace }}"
+        labels:
+          app: drupal
+          site: "{{ ansible_operator_meta.name }}"
+          drupal: "{{ ansible_operator_meta.name }}"
+      data:
+        settings.php: "{{ drupal_settings_postgres_php }}"
+
+- name: Drupal startup
+  community.kubernetes.k8s:
+    definition:
+      kind: ConfigMap
+      apiVersion: v1
+      metadata:
+        name: "{{ ansible_operator_meta.name }}-drupal-startup"
+        namespace: "{{ ansible_operator_meta.namespace }}"
+        labels:
+          app: drupal
+          site: "{{ ansible_operator_meta.name }}"
+          drupal: "{{ ansible_operator_meta.name }}"
+      data:
+        startup.sh: "{{ drupal_startup }}"
+
+- name: Drupal init
+  community.kubernetes.k8s:
+    definition:
+      kind: ConfigMap
+      apiVersion: v1
+      metadata:
+        name: "{{ ansible_operator_meta.name }}-drupal-init"
+        namespace: "{{ ansible_operator_meta.namespace }}"
+        labels:
+          app: drupal
+          site: "{{ ansible_operator_meta.name }}"
+          drupal: "{{ ansible_operator_meta.name }}"
+      data:
+        init.sh: "{{ drupal_init }}"
+
+- name: Drupal php custom ini
+  community.kubernetes.k8s:
+    definition:
+      kind: ConfigMap
+      apiVersion: v1
+      metadata:
+        name: "{{ ansible_operator_meta.name }}-drupal-php-ini"
+        namespace: "{{ ansible_operator_meta.namespace }}"
+        labels:
+          app: drupal
+          site: "{{ ansible_operator_meta.name }}"
+          drupal: "{{ ansible_operator_meta.name }}"
+      data:
+        operator.ini: "{{ drupal_php_ini }}"
+
+- name: Fluentd configmap (set up drupal logs)
+  when:
+    - fluentd == true
+  community.kubernetes.k8s:
+    definition:
+      kind: ConfigMap
+      apiVersion: v1
+      metadata:
+        name: "fluentd-drupal-configmap"
+        namespace: "{{ ansible_operator_meta.namespace }}"
+      data:
+        fluentd-drupal.conf: "{{ fluentd_drupal_config }}"
+
+- name: Files PVC
+  community.kubernetes.k8s:
+    definition: "{{ lookup('template', 'templates/files-pvc.yaml.j2') }}"
+
+- name: Mariadb PVC
+  when:
+    - no_mariadb == false
+  community.kubernetes.k8s:
+    definition: "{{ lookup('template', 'templates/db-pvc.yaml.j2') }}"
+
+- name: Mariadb secrets
+  when:
+    - no_mariadb == false
+  community.kubernetes.k8s:
+    definition: "{{ lookup('template', 'templates/db-secrets.yaml.j2') }}"
+
+- name: Drupal with postgres
+  when:
+    - postgres is defined
+    - postgres == true
+  community.kubernetes.k8s:
+    definition: "{{ lookup('template', 'templates/drupal-postgres.yaml.j2') }}"
+
+- name: Drupal with Mariadb
+  when:
+    - postgres == false
+  community.kubernetes.k8s:
+    definition: "{{ lookup('template', 'templates/drupal-mariadb.yaml.j2') }}"
+
+- name: Drupal secrets
+  community.kubernetes.k8s:
+    definition: "{{ lookup('template', 'templates/drupal-secrets.yaml.j2') }}"
+
+- name: Drupal Nodeport
+  when:
+    - no_drupal_nodeport is not defined
+  community.kubernetes.k8s:
+   definition: "{{ lookup('template', 'templates/drupal-node-port.yaml.j2') }}"
+
+- name: Drupal Loadbalancer
+  when:
+    - drupal_loadbalancer
+  community.kubernetes.k8s:
+    definition: "{{ lookup('template', 'templates/drupal-load-balancer.yaml.j2') }}"
+
+- name: Mariadb
+  when:
+    - no_mariadb == false
+  community.kubernetes.k8s:
+    definition: "{{ lookup('template', 'templates/mariadb.yaml.j2') }}"
+
+- name: Mariadb Nodeport
+  when:
+    - no_mariadb == false
+  community.kubernetes.k8s:
+    definition: "{{ lookup('template', 'templates/mariadb-node-port.yaml.j2') }}"
+
+# - name: Drupal cron
+#   when:
+#     - drupal_cron is defined
+#     - drupal_cron
+#   k8s_raw:
+#     definition:
+#       kind: CronJob
+#       apiVersion: batch/v1beta1
+#       metadata:
+#         name: '{{ ansible_operator_meta.name }}-drupal-cron'
+#         namespace: '{{ ansible_operator_meta.namespace }}'
+#       spec:
+#         schedule: '{{ drupal_cron_schedule }}'
+#         concurrencyPolicy: '{{ drupal_cron_concurrencyPolicy }}'
+#         successfulJobsHistoryLimit: '{{ drupal_cron_successfulJobsHistoryLimit }}'
+#         failedJobsHistoryLimit: '{{ drupal_cron_failedJobsHistoryLimit }}'
+#         jobTemplate:
+#           spec:
+#             activeDeadlineSeconds: '{{ drupal_cron_activeDeadlineSeconds }}'
+#             template:
+#               spec:
+#                 restartPolicy: '{{ drupal_cron_restartPolicy }}'
+#                 containers:
+#                 - name: drupal-cron
+#                   args:
+#                   - '{{ drupal_cron_shell }}'
+#                   - -c
+#                   - '{{ drupal_cron_args }}'
+#                   imagePullPolicy: '{{ drupal_image_pull_policy }}'
+#                   image: '{{ drupal_image }}'
+#                   ports:
+#                     - containerPort: 80
+#                   livenessProbe:
+#                     tcpSocket:
+#                       port: 80
+#                     initialDelaySeconds: 5
+#                   readinessProbe:
+#                     tcpSocket:
+#                       port: 80
+#                     initialDelaySeconds: 5
+#                   volumeMounts:
+#                   - mountPath: '{{ drupal_web_root }}/sites/default/settings.php'
+#                     subPath: settings.php
+#                     name: drupal-settings
+#                   - mountPath: '{{ drupal_web_root }}/sites/default/files/'
+#                     name: drupal-files
+#                 imagePullSecrets:
+#                   - name:  '{{ drupal_image_reg_secret }}'
+#                 volumes:
+#                 - name: drupal-settings
+#                   configMap:
+#                     name: '{{ ansible_operator_meta.name }}-drupal-config'
+#                 - name: drupal-files
+#                   persistentVolumeClaim:
+#                     claimName: '{{ ansible_operator_meta.name }}-files-pvc'
+
+# - name: automatic db backup secret
+#   when:
+#     - auto_backup is defined
+#     - auto_backup
+#   k8s_raw:
+#     definition:
+#       apiVersion: v1
+#       kind: Secret
+#       metadata:
+#         name: '{{ ansible_operator_meta.name }}-auto-db-backup-secret'
+#         namespace: '{{ ansible_operator_meta.namespace }}'
+#       type: Opaque
+#       data:
+#         aws_access_key: '{{ aws_access_key | b64encode }}'
+#         aws_secret_access_key: '{{ aws_secret_access_key | b64encode }}'
+#         backup_endpoint: '{{ backup_endpoint | b64encode }}'
+
+- name: automatic db backup
+  when:
+    - auto_backup is defined
+    - auto_backup == true
+  community.kubernetes.k8s:
+    definition: "{{ lookup('template', 'templates/automatic-db-backup.yaml.j2') }}"
+
+# # tasks file for backup
+# - name: Take a final db backup
+#   community.kubernetes.k8s:
+#     # wait: yes
+#     # wait_condition:
+#     #   reason: Started
+#     #   type: Normal
+#     # wait_timeout: 240
+#     definition:
+#       apiVersion: batch/v1
+#       kind: Job
+#       metadata:
+#         name: "{{ backup_job_name }}"
+#         namespace: "{{ backup_job_namespace }}"
+#       spec:
+#         # Number of times the pod is restarted on failure.
+#         backoffLimit: "{{ backup_job_backoffLimit }}"
+#         activeDeadlineSeconds: "{{ backup_job_activeDeadlineSeconds }}"
+#         template:
+#           spec:
+#             # Don't restart container, only the whole pod.
+#             restartPolicy: "{{ backup_job_restartPolicy }}"
+#             containers:
+#               - name: echo-test
+#                 image: busybox
+#                 command: ["sh", "-c", "sleep 240"]
+#             serviceAccountName: backup-job-serviceaccount
+- name: automatic files backup
+  when:
+    - auto_files_backup is defined
+    - auto_files_backup == true
+  community.kubernetes.k8s:
+    definition:
+      apiVersion: batch/v1beta1
+      kind: CronJob
+      metadata:
+        name: '{{ ansible_operator_meta.name }}-auto-files-backup'
+        namespace: '{{ ansible_operator_meta.namespace }}'
+      spec:
+        schedule: '{{ backup_files_cron_schedule }}'
+        successfulJobsHistoryLimit: '{{ backup_files_cron_successfulJobsHistoryLimit }}'
+        failedJobsHistoryLimit: '{{ backup_files_cron_failedJobsHistoryLimit }}'
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                containers:
+                - name: auto-files-backup
+                  imagePullSecrets:
+                  - name:  '{{ drupal_image_reg_secret }}'
+                  imagePullPolicy: '{{ drupal_image_pull_policy }}'
+                  image: '{{ drupal_image }}'
+                  command:
+                    - /bin/sh
+                    - -c
+                    - export NOW=$(date +"%Y-%m-%d"); mc --config-dir /var/www/.mc/ mirror --disable-multipart --overwrite /files s3/sobi-backups/files/${S3_NAMESPACE}/${NOW}/${S3_PREFIX}
+                  env:
+                    - name: S3_ACCESS_KEY_ID
+                      valueFrom:
+                        secretKeyRef:
+                          name: 'auto-db-backup-secret'
+                          key: aws_access_key
+                    - name: S3_SECRET_ACCESS_KEY
+                      valueFrom:
+                        secretKeyRef:
+                          name: 'auto-db-backup-secret'
+                          key: aws_secret_access_key
+                    - name: S3_REGION
+                      valueFrom:
+                        secretKeyRef:
+                          name: 'auto-db-backup-secret'
+                          key: region
+                          optional: true
+                    - name: S3_BUCKET
+                      valueFrom:
+                        secretKeyRef:
+                          name: 'auto-db-backup-secret'
+                          key: bucket
+                    - name: S3_ENDPOINT
+                      optional: 1
+                      valueFrom:
+                        secretKeyRef:
+                          name: 'auto-db-backup-secret'
+                          key: endpoint
+                          optional: true
+                    - name: DEBUG
+                      valueFrom:
+                        secretKeyRef:
+                          name: 'auto-db-backup-secret'
+                          key: debug
+                          optional: true
+                    - name: S3_PREFIX
+                      value: '{{ ansible_operator_meta.name }}'
+                    - name: S3_NAMESPACE
+                      value: '{{ ansible_operator_meta.namespace }}'
+                  volumeMounts:
+                  - mountPath: '/files/'
+                    name: drupal-files
+                volumes:
+                - name: drupal-files
+                  persistentVolumeClaim:
+                    claimName: '{{ ansible_operator_meta.name }}-files-pvc'
+                restartPolicy: Never
+
+- name: Postgres
+  when:
+    - postgres is defined
+    - postgres == true
+  community.kubernetes.k8s:
+    definition:
+      kind: StatefulSet
+      apiVersion: apps/v1
+      metadata:
+        name: "{{ ansible_operator_meta.name }}-postgres"
+        namespace: "{{ ansible_operator_meta.namespace }}"
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            postgres: "{{ ansible_operator_meta.name }}"
+        strategy:
+          type: Recreate
+        template:
+          metadata:
+            labels:
+              app: postgres
+              site: "{{ ansible_operator_meta.name }}"
+              postgres: "{{ ansible_operator_meta.name }}"
+          #  finalizers:
+          #    - ozzi.io/backup-finalizer
+          spec:
+            containers:
+              - name: postgres
+                image: "{{ postgres_image }}"
+                imagePullPolicy: "IfNotPresent"
+                resources:
+                  requests:
+                    memory: "{{ postgres_resources_requests_memory }}"
+                    cpu: "{{ postgres_resources_requests_cpu }}"
+                  limits:
+                    memory: "{{ postgres_resources_limits_memory }}"
+                    cpu: "{{ postgres_resources_limits_cpu }}"
+                ports:
+                  - containerPort: "{{ postgres_container_port }}"
+                env:
+                  - name: POSTGRES_DATABASE
+                    valueFrom:
+                      secretKeyRef:
+                        name: "{{ ansible_operator_meta.name }}.drupal-secrets"
+                        key: db_database
+                  - name: POSTGRES_USER
+                    valueFrom:
+                      secretKeyRef:
+                        name: "{{ ansible_operator_meta.name }}.drupal-secrets"
+                        key: db_user
+                  - name: POSTGRES_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: "{{ ansible_operator_meta.name }}.drupal-secrets"
+                        key: db_password
+                volumeMounts:
+                  - mountPath: /var/lib/postgresql/data
+                    name: drupal-postgres
+                    subPath: postgres
+            volumes:
+              - name: drupal-postgres
+                persistentVolumeClaim:
+                  claimName: "{{ ansible_operator_meta.name }}-postgres-pvc"
+
+- name: Postgres Nodeport
+  when:
+    - postgres is defined
+    - postgres == true
+  community.kubernetes.k8s:
+    definition:
+      kind: Service
+      apiVersion: v1
+      metadata:
+        name: "{{ ansible_operator_meta.name }}-postgres"
+        namespace: "{{ ansible_operator_meta.namespace }}"
+        labels:
+          app: postgres
+          site: "{{ ansible_operator_meta.name }}"
+      spec:
+        type: NodePort
+        ports:
+          - port: "{{ postgres_container_port }}"
+            targetPort: "{{ postgres_container_port }}"
+        selector:
+          postgres: "{{ ansible_operator_meta.name }}"
+
+- name: Postgres PVC
+  when:
+    - postgres is defined
+    - postgres == true
+  community.kubernetes.k8s:
+    definition:
+      kind: PersistentVolumeClaim
+      apiVersion: v1
+      metadata:
+        name: "{{ ansible_operator_meta.name }}-postgres-pvc"
+        namespace: "{{ ansible_operator_meta.namespace }}"
+        labels:
+          app: postgres
+          site: "{{ ansible_operator_meta.name }}"
+          postgres: "{{ ansible_operator_meta.name }}"
+      spec:
+        storageClassName: "{{ postgres_pvc }}"
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: "{{ postgres_pvc_size }}"
+
+- name: Memcached
+  when:
+    - memcached is defined
+    - memcached == true
+  community.kubernetes.k8s:
+    definition:
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: "{{ ansible_operator_meta.name }}-memcached"
+        namespace: "{{ ansible_operator_meta.namespace }}"
+      spec:
+        replicas: 1
+        revisionHistoryLimit: 5
+        selector:
+          matchLabels:
+              memcached: "{{ ansible_operator_meta.name }}"
+          strategy:
+            type: Recreate
+        template:
+          metadata:
+            labels:
+              component: memcached
+              app: memcached
+              site: "{{ ansible_operator_meta.name }}"
+              memcached: "{{ ansible_operator_meta.name }}"
+          spec:
+            containers:
+              - name: memcached
+                args: ["memcached", "-m", "64"]
+                image: "{{ memcached_image }}"
+                ports:
+                  - containerPort:  "{{ memcached_container_port }}"
+                    name: memcached
+                    protocol: TCP
+                livenessProbe:
+                  tcpSocket:
+                    port: memcached
+                readinessProbe:
+                  tcpSocket:
+                    port: memcached
+                resources:
+                  limits:
+                    cpu: "{{ memcached_resources_limits_cpu }}"
+                    memory: "{{ memcached_resources_limits_memory }}"
+                  requests:
+                    memory: "{{ memcached_resources_requests_memory }}"
+                    cpu: "{{ memcached_resources_requests_cpu }}"
+
+- name: Memcached Nodeport
+  when:
+    - memcached is defined
+    - memcached == true
+  community.kubernetes.k8s:
+    definition:
+      kind: Service
+      apiVersion: v1
+      metadata:
+        name: "{{ ansible_operator_meta.name }}-memcached"
+        namespace: "{{ ansible_operator_meta.namespace }}"
+        labels:
+          app: memcached
+          site: "{{ ansible_operator_meta.name }}"
+      spec:
+        type: NodePort
+        ports:
+          - name: memcached
+            port: "{{ memcached_container_port }}"
+            protocol: TCP
+            targetPort: "{{ memcached_container_port }}"
+        selector:
+          memcached: "{{ ansible_operator_meta.name }}"
+
+- name: Adminer
+  when:
+    - adminer is defined
+    - adminer == true
+  community.kubernetes.k8s:
+    definition: "{{ lookup('template', 'templates/adminer.yaml.j2') }}"
+
+- name: Adminer Nodeport
+  when:
+    - adminer is defined
+    - adminer == true
+  community.kubernetes.k8s:
+    definition: "{{ lookup('template', 'templates/adminer-node-port.yaml.j2') }}"

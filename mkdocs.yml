@@ -1,0 +1,8 @@
+site_name: Drupal Operator Docs
+site_url: https://docs.drupal-operator.org
+nav:
+    - Home: index.md
+    - About: about.md
+    - Install the operator: install-operator.md
+    - License: license.md
+theme: readthedocs

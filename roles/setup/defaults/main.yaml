@@ -1,0 +1,20 @@
+---
+# Resources
+drupal_resources_requests_memory: 50Mi
+drupal_resources_limits_memory: 100Mi
+drupal_resources_requests_cpu: 0.1
+drupal_resources_limits_cpu: 0.7
+db_resources_requests_memory: 100Mi
+db_resources_limits_memory: 500Mi
+db_resources_requests_cpu: 0.1
+db_resources_limits_cpu: 0.7
+
+# defaults file for backup
+backup_job_name: "{{ ansible_operator_meta.name }}-final-db-backup-one"
+backup_job_namespace: "{{ ansible_operator_meta.namespace }}"
+# Try N times on failure
+backup_job_backoffLimit: 5
+# Can be Never or OnFailure. OnFailure only restarts the container, not the whole pod.
+backup_job_restartPolicy: OnFailure
+# Terminate after latest N seconds
+backup_job_activeDeadlineSeconds: 300

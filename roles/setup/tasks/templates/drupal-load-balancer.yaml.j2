@@ -1,0 +1,16 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: "{{ ansible_operator_meta.name }}-lb"
+  namespace: "{{ ansible_operator_meta.namespace }}"
+  labels:
+    app: drupal
+    site: "{{ ansible_operator_meta.name }}"
+spec:
+  type: LoadBalancer
+  ports:
+    - port: {{ drupal_loadbalancer_port | int }}
+      targetPort: {{ drupal_loadbalancer_target_port | int }}
+  selector:
+    drupal: "{{ ansible_operator_meta.name }}"

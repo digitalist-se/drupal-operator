@@ -1,0 +1,17 @@
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: "{{ ansible_operator_meta.name }}-db-pvc"
+  namespace: "{{ ansible_operator_meta.namespace }}"
+  labels:
+    app: mariadb
+    site: "{{ ansible_operator_meta.name }}"
+    db: "{{ ansible_operator_meta.name }}"
+spec:
+  storageClassName: "{{ db_pvc }}"
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "{{ db_pvc_size }}"

@@ -1,0 +1,122 @@
+---
+- name: Create the ozzi.io/v1alpha2 Drupal resource
+  k8s:
+    state: present
+    namespace: '{{ namespace }}'
+    definition: "{{ lookup('template', '/'.join([samples_dir, cr_file])) | from_yaml }}"
+    wait: yes
+    wait_timeout: "600"
+    wait_condition:
+      type: Running
+      reason: Running
+      status: "True"
+  vars:
+    cr_file: 'drupal_v1alpha2_drupal.yaml'
+
+- name: Debug Drupal Settings configmap
+  debug:
+    var: cm
+  vars:
+    cm: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="ConfigMap", namespace="molecule-test", resource_name="drupal-sample-drupal-config") }}'
+
+- name: Assert Drupal Settings configmap
+  assert:
+    that: "'databases' in cm.data['settings.php']"
+  vars:
+    cm: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="ConfigMap", namespace="molecule-test", resource_name="drupal-sample-drupal-config") }}'
+
+- name: Debug Drupal Startup configmap
+  debug:
+    var: cm
+  vars:
+    cm: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="ConfigMap", namespace="molecule-test", resource_name="drupal-sample-drupal-startup") }}'
+
+- name: Assert Drupal Startup configmap
+  assert:
+    that: "'#!/bin/bash' in cm.data['startup.sh']"
+  vars:
+    cm: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="ConfigMap", namespace="molecule-test", resource_name="drupal-sample-drupal-startup") }}'
+
+- name: Debug Drupal Init configmap
+  debug:
+    var: cm
+  vars:
+    cm: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="ConfigMap", namespace="molecule-test", resource_name="drupal-sample-drupal-init") }}'
+
+- name: Assert Drupal Init configmap
+  assert:
+    that: "'#!/bin/bash' in cm.data['init.sh']"
+  vars:
+    cm: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="ConfigMap", namespace="molecule-test", resource_name="drupal-sample-drupal-init") }}'
+
+- name: Debug Drupal php custom ini configmap
+  debug:
+    var: cm
+  vars:
+    cm: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="ConfigMap", namespace="molecule-test", resource_name="drupal-sample-drupal-php-ini") }}'
+
+- name: Assert memory_limit in Drupal php custom ini configmap
+  assert:
+    that: "'memory_limit' in cm.data['operator.ini']"
+  vars:
+    cm: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="ConfigMap", namespace="molecule-test", resource_name="drupal-sample-drupal-php-ini") }}'
+
+- name: Debug Fluentd configmap configmap
+  debug:
+    var: cm
+  vars:
+    cm: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="ConfigMap", namespace="molecule-test", resource_name="fluentd-drupal-configmap") }}'
+
+- name: Assert Fluentd configmap configmap
+  assert:
+    that: "'<source>' in cm.data['fluentd-drupal.conf']"
+  vars:
+    cm: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="ConfigMap", namespace="molecule-test", resource_name="fluentd-drupal-configmap") }}'
+
+- name: Debug Files PersistentVolumeClaim
+  debug:
+    var: pvc
+  vars:
+    pvc: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="PersistentVolumeClaim", namespace="molecule-test", resource_name="drupal-sample-files-pvc") }}'
+
+- name: Assert Files PersistentVolumeClaim is ReadWriteMany
+  assert:
+    that: "pvc.spec.accessModes == ['ReadWriteMany']"
+  vars:
+    pvc: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="PersistentVolumeClaim", namespace="molecule-test", resource_name="drupal-sample-files-pvc") }}'
+
+- name: Debug Database PersistentVolumeClaim
+  debug:
+    var: pvc
+  vars:
+    pvc: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="PersistentVolumeClaim", namespace="molecule-test", resource_name="drupal-sample-db-pvc") }}'
+
+- name: Assert Database PersistentVolumeClaim is ReadWriteOnce
+  assert:
+    that: "pvc.spec.accessModes == ['ReadWriteOnce']"
+  vars:
+    pvc: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="PersistentVolumeClaim", namespace="molecule-test", resource_name="drupal-sample-db-pvc") }}'
+
+- name: Fail if no Database secret exists
+  fail:
+    msg: Database secret "drupal-sample.mariadb-secrets" was not found.
+  when: secret is undefined
+  vars:
+    secret: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="Secret", namespace="molecule-test", resource_name="drupal-sample.mariadb-secrets") }}'
+
+- name: Fail if no Drupal secret exists
+  fail:
+    msg: Database secret "drupal-sample.drupal-secrets" was not found.
+  when: secret is undefined
+  vars:
+    secret: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="Secret", namespace="molecule-test", resource_name="drupal-sample-np") }}'
+
+- name: Fail if no Drupal NodePort Service exists
+  fail:
+    msg: NodePort "drupal-sample-np" was not found.
+  when:
+    - no_drupal_nodeport is not defined
+    - np is undefined
+  vars:
+    np: '{{ lookup("community.kubernetes.k8s", api_version="v1", kind="Secret", namespace="molecule-test", resource_name="drupal-sample-np") }}'
+

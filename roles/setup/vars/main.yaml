@@ -1,0 +1,362 @@
+---
+drupal_operator_image: ozziio/drupal-operator:v0.0.2
+busybox_image: busybox:1.28
+drupal_run_as_user: 1000
+drupal_run_as_group: 2000
+drupal_fsgroup: 3000
+auto_backup: false
+db_image: mariadb:10.3.21
+db_resources_requests_memory: 70Mi
+db_resources_requests_cpu: 10m
+db_resources_limits_memory: 512Mi
+db_resources_limits_cpu: 250m
+drupal_nodeport: true
+drupal_loadbalancer: false
+drupal_loadbalancer_port: 80
+drupal_loadbalancer_target_port: 80
+backup_endpoint: '**None**'
+backup_cron_schedule: '0 3 * * *'
+backup_cron_successfulJobsHistoryLimit: 1
+backup_cron_failedJobsHistoryLimit: 1
+backup_files_cron_schedule: '0 5 * * *'
+backup_files_cron_successfulJobsHistoryLimit: 1
+backup_files_cron_failedJobsHistoryLimit: 1
+auto_files_backup: false
+mysql_root_password: root
+no_mariadb: false
+postgres: false
+postgres_image: postgres:10.18
+postgres_resources_requests_memory: 70Mi
+postgres_resources_requests_cpu: 10m
+postgres_resources_limits_memory: 512Mi
+postgres_resources_limits_cpu: 250m
+postgres_pvc: default
+postgres_pvc_size: 250M
+postgres_container_port: 5432
+postgres_driver: 'pgsql'
+postgres_namespace: 'Drupal\\Core\\Database\\Driver\\pgsql'
+postgres_charset: 'utf8mb4'
+postgres_collation: 'utf8mb4_swedish_ci'
+memcached_image: memcached:1.6.10-alpine
+memcached_resources_requests_memory: 70Mi
+memcached_resources_requests_cpu: 10m
+memcached_resources_limits_memory: 512Mi
+memcached_resources_limits_cpu: 250m
+memcached_container_port: 11211
+change_cause: update
+drupal_name: drupal
+drupal_ports_container_port: 80
+drupal_ports_port: 80
+drupal_locale: en
+drupal_image: drupal:8.7-apache
+drupal_image_reg_secret: ''
+drupal_image_pull_policy: 'IfNotPresent'
+drupal_resources_requests_memory: 128Mi
+drupal_resources_requests_cpu: 10m
+drupal_resources_limits_memory: 512Mi
+drupal_resources_limits_cpu: 250m
+drupal_readinessProbe_initialDelaySeconds: 5
+drupal_readinessProbe_periodSeconds: 5
+drupal_readinessProbe_timeoutSeconds: 120
+drupal_livenessProbe_tcpSocket_port: 80
+drupal_custom_liveness_probe_port: ''
+drupal_livenessProbe_initialDelaySeconds: 10
+drupal_livenessProbe_periodSeconds: 10
+drupal_livenessProbe_timeoutSeconds: 3
+drupal_php_memory_limit: 512M
+drupal_php_post_max_size: 1024M
+drupal_php_upload_max_filesize: 500M
+drupal_php_ini_file: '/usr/local/etc/php/conf.d/operator.ini'
+drupal_php_ini_subPath: 'operator.ini'
+drupal_root: '/opt/drupal'
+drupal_web_root: '/opt/drupal/web'
+drupal_replicas: 1
+drupal_cron_schedule: '*/5 * * * *'
+drupal_cron_args: 'cd {{ drupal_web_root }}/sites/default && {{ drupal_web_root }}/../vendor/bin/drush cron'
+drupal_cron_shell: /bin/bash
+drupal_cron_activeDeadlineSeconds: 6000
+drupal_cron_successfulJobsHistoryLimit: 1
+drupal_cron_failedJobsHistoryLimit: 1
+drupal_cron_restartPolicy: Never
+drupal_cron_concurrencyPolicy: Forbid
+drupal_config_split: basic_site_settings
+drupal_config_import: true
+drupal_user: 'drupal'
+drupal_password: 'drupal'
+drupal_reset_admin: false
+drupal_db: 'drupal'
+drupal_db_username: 'drupal'
+drupal_db_pass: 'd3upa1'
+drupal_db_prefix: ''
+drupal_db_port: '3306'
+drupal_db_driver: 'mysql'
+drupal_db_namespace: 'Drupal\\Core\\Database\\Driver\\mysql'
+drupal_translation_path: 'sites/default/files/translations'
+drupal_extra_config: ''
+drupal_config_system_performance_css_preprocess: "TRUE"
+drupal_config_system_performance_js_preprocess: "TRUE"
+drupal_set_uuid: true
+adminer: false
+adminer_image: adminer:4.8.1-standalone
+adminer_container_port: 8080
+adminer_target_port: 8080
+# dummy value
+drupal_uuid: 'a0bb6f1c-dda6-477b-938a-4f0219775c28'
+drupal_settings_php: |-
+      <?php
+      $settings['container_yamls'][] = DRUPAL_ROOT . '/sites/default/services.yml';
+      $config['system.performance']['css']['preprocess'] = '{{ drupal_config_system_performance_css_preprocess }}';
+      $config['system.performance']['js']['preprocess'] = '{{ drupal_config_system_performance_js_preprocess }}';
+      $databases['default']['default'] = [
+        'database' => getenv('MYSQL_DATABASE'),
+        'username' => getenv('MYSQL_USER'),
+        'password' => getenv('MYSQL_PASSWORD'),
+        'prefix' => '{{ drupal_db_prefix }}',
+        'host' => '{{ ansible_operator_meta.name }}-db',
+        'port' => '{{ drupal_db_port }}',
+        'namespace' => '{{ drupal_db_namespace }}',
+        'driver' => '{{ drupal_db_driver }}',
+      ];
+      $settings['hash_salt'] = '{{ hash_salt | default(lookup('password', '/dev/null chars=ascii_letters'), true) }}';
+      $settings['trusted_host_patterns'] = ['{{ trusted_host_patterns | default('^.+$', true) }}'];
+      $config['locale.settings']['translation']['path'] = '{{ drupal_translation_path }}';
+      {{ drupal_extra_config }}
+drupal_settings_postgres_php: |-
+      <?php
+      $settings['container_yamls'][] = DRUPAL_ROOT . '/sites/default/services.yml';
+      $config['system.performance']['css']['preprocess'] = '{{ drupal_config_system_performance_css_preprocess }}';
+      $config['system.performance']['js']['preprocess'] = '{{ drupal_config_system_performance_js_preprocess }}';
+      $databases['default']['default'] = [
+        'database' => getenv('POSTGRES_DATABASE'),
+        'username' => getenv('POSTGRES_USER'),
+        'password' => getenv('POSTGRES_PASSWORD'),
+        'host' => '{{ ansible_operator_meta.name }}-postgres',
+        'port' => '{{ postgres_container_port }}',
+        'namespace' => '{{ postgres_namespace }}',
+        'driver' => '{{ postgres_driver }}',
+        'charset' => '{{ postgres_charset }}',
+        'collation' => '{{ postgres_collation }}',
+      ];
+      $settings['hash_salt'] = '{{ hash_salt | default(lookup('password', '/dev/null chars=ascii_letters'), true) }}';
+      $settings['trusted_host_patterns'] = ['{{ trusted_host_patterns | default('^.+$', true) }}'];
+      $config['locale.settings']['translation']['path'] = '{{ drupal_translation_path }}';
+      $settings["config_sync_directory"] = '../sync';
+      {{ drupal_extra_config }}
+drush_path: /opt/drupal/vendor/bin/drush
+install_path: /opt/drupal/web/sites
+stat_file_path: /opt/drupal/web/sites/default/files/install.log
+aws_access_key: minio
+aws_secret_access_key: minio123
+files_pvc: default
+files_pvc_size: 250M
+files_accessmode: ReadWriteMany
+minio_client_config_dir: /opt/drupal/.mc/
+db_pvc: default
+db_pvc_size: 250M
+db_container_port: 3306
+db_port: 3306
+drupal_profile: standard
+drupal_priority_class: medium-priority
+drupal_import_database: false
+drupal_database_backup_path: ''
+drupal_db_import_force: false
+drupal_do_not_install: false
+drupal_always_install: false
+tmp_dir: /tmp
+drupal_drush_post_install_command: false
+drupal_annotations: ''
+drupal_labels: ''
+drupal_files_backup_path: ''
+drupal_import_files: false
+fluentd: false
+drupal_init: |-
+  #!/bin/bash
+  set -x
+  cp /scripts/settings.php "{{ install_path }}"/default/settings.php
+  cp /scripts/settings.php /pre-scripts/settings.php;
+  cp /scripts/startup.sh /pre-scripts/startup.sh
+  mkdir -p "{{ install_path }}"/default/files
+  pushd "{{ install_path }}"/default
+  chown www-data:www-data -R files sync
+  chmod 2775 files sync
+  find files/ -type f -exec chmod ug=rw,o= {} \;
+  find files/ -type d -exec chmod ug=rwx,o= {} \;
+  chmod u+x /pre-scripts/startup.sh && /pre-scripts/startup.sh && echo "done"
+drupal_startup: |-
+  #!/bin/bash
+  set -x
+  error_exit() {
+    echo "[ERROR] drupal_startup: ${1:-"Unknown Error"}" 1>&2
+    exit 1
+  }
+  DRUSH="{{ drush_path }}"
+  INSTALLPATH="{{ install_path }}"
+  # Do NOT put quotes around false!!!1!
+  STATFILE="{{ stat_file_path }}"
+  DRUPAL_LOCALE="{{ drupal_locale }}"
+  drupal_do_not_install="{{ drupal_do_not_install | default(false) | lower }}"
+  drupal_config_split="{{ drupal_config_split | default(false) | lower }}"
+  drupal_config_import="{{ drupal_config_import | default(true) | lower }}"
+  do_db_import="{{ drupal_import_database | default(false) | lower }}"
+  db_import_path="{{ drupal_database_backup_path | default('/tmp/db.sql') }}"
+  drupal_db_import_force="{{ drupal_db_import_force | default(false) | lower }}"
+  drupal_always_install="{{ drupal_always_install | default(false) | lower }}"
+  drupal_drush_post_install_command="{{ drupal_drush_post_install_command | default(false) | lower }}"
+  do_files_import="{{ drupal_import_files | default(false) | lower }}"
+  do_reset_admin="{{ drupal_reset_admin | default(false) | lower }}"
+  pushd "{{ install_path }}"/default
+  chown www-data:www-data -R files sync
+  chmod 2775 files sync
+  find files/ -type f -exec chmod ug=rw,o= {} \;
+  find files/ -type d -exec chmod ug=rwx,o= {} \;
+  chmod 777 -R files sync
+  # Import database when do_db_import is "true" AND the statfile has not been
+  # created. The statfile is a protection against dropping the database.
+  # Very important that the two statements are grouped by parentheses,
+  # otherwise the && can be short ciruited.
+  if [[ ("$drupal_always_install" == "true") ]];then
+    rm -f $STATFILE
+    ${DRUSH} sql-drop -y || error_exit "$LINENO: Could not drop db."
+  fi
+  if [[ ("$do_files_import" == "true") ]];then
+      mc --config-dir '{{ minio_client_config_dir }}' mirror '{{ drupal_files_backup_path }}' '{{ install_path }}'/default/files || error_exit "$LINENO: Could not mirror files."
+      pushd "{{ install_path }}"/default
+      chown www-data:www-data -R files
+      chmod 2775 files
+  fi
+  if [[ ("$drupal_do_not_install" == "true") ]];then
+    exit 0
+  fi
+  if [[ (("$do_db_import" == "true") && ("$drupal_db_import_force" == "true")) ]]; then
+      backup_name=`basename ${db_import_path}`
+      mc --config-dir '{{ minio_client_config_dir }}' cp ${db_import_path} '{{ tmp_dir }}'/${backup_name} || error_exit "$LINENO: Could not download db dump."
+      gzip -vt '{{ tmp_dir }}'/${backup_name}
+      if [ $? = 0 ]; then
+          echo ">> [OK] Unpacking gzip..."
+          gunzip -c '{{ tmp_dir }}'/${backup_name} > '{{ tmp_dir }}'/db.sql || error_exit "$LINENO: Could not unzip '{{ tmp_dir }}'/${backup_name}"
+      fi
+      ${DRUSH} sql-drop -y || error_exit "$LINENO: Could not drop db."
+      echo ">> [OK] Importing database from '{{ tmp_dir }}'/${backup_name}"
+      ${DRUSH} sql-cli < '{{ tmp_dir }}'/db.sql
+      $DRUSH cr
+      touch $STATFILE && echo "drupal is installed" >> $STATFILE
+  fi
+  if [[ (("$do_db_import" == "true") && ( ! -e $STATFILE)) ]]; then
+      backup_name=`basename ${db_import_path}`
+      mc --config-dir '{{ minio_client_config_dir }}' cp ${db_import_path} '{{ tmp_dir }}'/${backup_name} || error_exit "$LINENO: Could not download db dump."
+      gzip -vt '{{ tmp_dir }}'/${backup_name}
+      if [ $? = 0 ]; then
+          echo ">> [OK] Unpacking gzip..."
+          gunzip -c '{{ tmp_dir }}'/${backup_name} > '{{ tmp_dir }}'/db.sql || error_exit "$LINENO: Could not unzip '{{ tmp_dir }}'/${backup_name}"
+      fi
+      ${DRUSH} sql-drop -y || error_exit "$LINENO: Could not drop db."
+      echo ">> [OK] Importing database from '{{ tmp_dir }}'/${backup_name}"
+      ${DRUSH} sql-cli < '{{ tmp_dir }}'/db.sql
+      $DRUSH cr
+      touch $STATFILE && echo "drupal is installed" >> $STATFILE
+  fi
+  if [[ ("$do_reset_admin" == "true") ]];then
+    ${DRUSH} upwd admin ${DRUPAL_PASSWORD} || error_exit "$LINENO: Could not reset admin pass."
+  fi
+  $DRUSH status bootstrap | grep -q "Drupal bootstrap" &> /dev/null;
+  if [ $? = 0 ];then
+      echo ">> [OK] Drupal is already installed."
+      $DRUSH updb -y
+      if [ "$drupal_config_split" == "false" ];then
+        if [ "$drupal_config_import" == "true" ];then
+          $DRUSH cim --partial -y
+          $DRUSH cim -y
+          $DRUSH cim --partial -y
+          $DRUSH cim -y
+        fi
+        $DRUSH cr
+        echo "drupal is installed" >> $STATFILE
+      else
+        $DRUSH csex $drupal_config_split -y
+        if [ "$drupal_config_import" == "true" ];then
+          $DRUSH cim --partial -y
+          $DRUSH cim -y
+        fi
+        $DRUSH csex $drupal_config_split -y
+        if [ "$drupal_config_import" == "true" ];then
+          $DRUSH cim --partial -y
+          $DRUSH cim -y
+        fi
+        $DRUSH cr
+      fi
+  elif [[ (($? != 0) && ( ! -e $STATFILE)) ]];then
+      touch $STATFILE
+      echo ">> [OK] Could not bootstrap Drupal, starting empty site-install"
+      $DRUSH si '{{ drupal_profile }}' install_configure_form.enable_update_status_module=NULL \
+        install_configure_form.enable_update_status_emails=NULL \
+        --account-name=${DRUPAL_USER} --account-pass=${DRUPAL_PASSWORD} --locale=${DRUPAL_LOCALE} -y
+      if [[ '{{drupal_set_uuid}}' == "true" ]];then
+        $DRUSH config-set "system.site" uuid '{{drupal_uuid}}' -y
+      fi
+      if [ "$drupal_config_split" == false ];then
+        if [ "$drupal_config_import" == "true" ];then
+          $DRUSH cim --partial -y
+          $DRUSH cim -y
+          $DRUSH cim --partial -y
+          $DRUSH cim -y
+        fi
+        $DRUSH cr
+        echo "drupal is installed" >> $STATFILE
+        if [ "$drupal_drush_post_install_command" != "false" ];then
+          echo "running drush post install"
+          $DRUSH "$drupal_drush_post_install_command"
+        fi
+      else
+        if [ "$drupal_config_import" == "true" ];then
+          $DRUSH cim --partial -y
+        fi
+        $DRUSH csex $drupal_config_split -y
+        if [ "$drupal_config_import" == "true" ];then
+          $DRUSH cim -y
+        fi
+        $DRUSH csex $drupal_config_split -y
+        if [ "$drupal_config_import" == "true" ];then
+          $DRUSH cim --partial -y
+          $DRUSH cim -y
+        fi
+        $DRUSH cr
+        echo "drupal is installed" >> $STATFILE
+        if [ "$drupal_drush_post_install_command" != "false" ];then
+          echo "running drush post install"
+          $DRUSH "$drupal_drush_post_install_command"
+        fi
+      fi
+  else
+    error_exit "$LINENO: Could not run config import nor site install."
+  fi
+drupal_php_ini: |-
+  post_max_size='{{ drupal_php_post_max_size }}';
+  upload_max_filesize='{{ drupal_php_upload_max_filesize }}';
+  memory_limit='{{ drupal_php_memory_limit }}';
+
+fluentd_drupal_log_dir: /var/log/drupal
+
+# yamllint disable rule:line-length
+fluentd_drupal_config: |
+  <source>
+    @type tail
+    format none
+    path {{ fluentd_drupal_log_dir }}/drupal.log
+    pos_file {{ fluentd_drupal_log_dir }}/drupal.log.pos
+    tag drupal
+    format /^\[(?<drupal_time>[^ ]*)\] *\[(?<level>[^ ]*)\] *\[location: (?<path>[^ ]*)\] \[channel: (?<channel>[^ ]*)\] \[client: (?<clientIP>[^ ]*)\] \[user: (?<user>[^ ]*)\]\s(?<message>.*)$/
+  </source>
+  <match drupal>
+    @type elasticsearch
+    host elasticsearch-master.logging.svc.cluster.local
+    port 9200
+    logstash_format true
+  </match>
+# yamllint enable
+
+# fluentd with elasticsearch plugin installed.
+fluentd_image: ozziio/fluentd-elasticsearch:1.11
+fluentd_conf_value: fluentd-drupal.conf
+# does not work, because quotes are added
+# genereal annotations for all resources
+deployment_custom_annotations: ''

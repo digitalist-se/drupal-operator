@@ -1,0 +1,5 @@
+---
+resources:
+- rbac.yaml
+- manifest.yaml
+- secret.yaml

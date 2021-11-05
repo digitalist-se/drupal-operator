@@ -1,0 +1,273 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  labels:
+    app: drupal
+    site: "{{ ansible_operator_meta.name }}"
+    drupal: "{{ ansible_operator_meta.name }}"
+{% if drupal_labels %}
+    {{ drupal_labels | indent(width=4) }}
+{% endif %}
+  name: "{{ ansible_operator_meta.name }}-drupal"
+  namespace: '{{ ansible_operator_meta.namespace }}'
+{% if drupal_annotations %}
+  annotations:
+    {{ drupal_annotations | indent(width=4) }}
+{% endif %}
+{% if deployment_custom_annotations %}
+    {{ deployment_custom_annotations | indent(width=4) }}
+{% endif %}
+spec:
+  replicas: {{ drupal_replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      drupal: "{{ ansible_operator_meta.name }}"
+  template:
+    metadata:
+      labels:
+        drupal: "{{ ansible_operator_meta.name }}"
+        app: drupal
+        site: "{{ ansible_operator_meta.name }}"
+      annotations:
+        kubernetes.io/change-cause: "{{ change_cause }}"
+        backup.velero.io/backup-volumes: 'drupal-files,pre-scripts'
+{% if drupal_annotations %}
+        {{ drupal_annotations | indent(width=8) }}
+{% endif %}
+{% if deployment_custom_annotations %}
+        {{ deployment_custom_annotations | indent(width=8) }}
+{% endif %}
+    spec:
+      initContainers:
+{% if fluentd is sameas true or fluentd == 'true'  %}
+        # We need a container with root to set file permissions for fluentd.
+        - name: init-fluentd
+          image: "{{ busybox_image }}"
+          command:
+            - /bin/sh
+            - -c
+            - 'F={{ fluentd_drupal_log_dir }}/drupal.log.pos ; if [ ! -e "$F" ]; then touch "$F"; fi ; chmod 777 "$F"'
+          volumeMounts:
+            - name: var-log-drupal
+              mountPath: "{{ fluentd_drupal_log_dir }}"
+{% endif %}
+        - name: init-db-connection
+          image: "{{ busybox_image }}"
+          command:
+            - /bin/sh
+            - -c
+            - echo "checking db connection"; sleep 20; for i in $(seq 1 300); do nc -zvw1 '{{ ansible_operator_meta.name }}-db' 3306 && exit 0 || sleep 3; done; exit 1
+        - name: init-drupal
+          image: "{{ drupal_image }}"
+          resources:
+            requests:
+              memory: "{{ drupal_resources_requests_memory }}"
+              cpu: "{{ drupal_resources_requests_cpu }}"
+            limits:
+              memory: "{{ drupal_resources_limits_memory }}"
+              cpu: "{{ drupal_resources_limits_cpu }}"
+          env:
+            - name: DRUPAL_LOCALE
+              value: "{{ drupal_locale }}"
+            - name: DRUPAL_LOCALE
+              value: "{{ drupal_locale }}"
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ ansible_operator_meta.name }}.drupal-secrets"
+                  key: db_database
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ ansible_operator_meta.name }}.drupal-secrets"
+                  key: db_user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ ansible_operator_meta.name }}.drupal-secrets"
+                  key: db_password
+            - name: DRUPAL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ ansible_operator_meta.name }}.drupal-secrets"
+                  key: user
+            - name: DRUPAL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ ansible_operator_meta.name }}.drupal-secrets"
+                  key: password
+          command:
+            - /bin/bash
+            - -c
+            - cp /scripts/init.sh /pre-scripts/init.sh;
+              chmod 755 /pre-scripts/init.sh;
+              /pre-scripts/init.sh
+          volumeMounts:
+            - name: drupal-php-ini
+              mountPath: "/usr/local/etc/php/conf.d/operator.ini"
+              subPath: operator.ini
+            - mountPath: "/scripts/init.sh"
+              subPath: init.sh
+              name: drupal-init
+            - mountPath: "/scripts/startup.sh"
+              subPath: startup.sh
+              name: drupal-startup
+            - mountPath: "/scripts/settings.php"
+              subPath: settings.php
+              name: drupal-settings
+            - name: pre-scripts
+              mountPath: /pre-scripts
+            - mountPath: "{{ drupal_web_root }}/sites/default/files/"
+              name: drupal-files
+            - mountPath: "{{ drupal_web_root }}/sites/default/sync/"
+              name: sync-files
+      containers:
+        - name: "{{ drupal_name }}"
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - while [ ! -f /scripts/settings.php ]; do echo "waiting for settings.php"; sleep 2; done;
+                    while [ ! -d  "{{ install_path }}"/default/files ]; do echo "waiting for files folder"; sleep 2; done;
+                    cp /scripts/settings.php "{{ install_path }}"/default/settings.php;
+                    chown www-data:www-data "{{ install_path }}"/default/settings.php;
+                    chown www-data:www-data -R "{{ install_path }}"/default/files;
+                    chmod 777 "{{ install_path }}"/default/files
+          imagePullPolicy: "{{ drupal_image_pull_policy }}"
+          image: "{{ drupal_image }}"
+          resources:
+            requests:
+              memory: "{{ drupal_resources_requests_memory }}"
+              cpu: "{{ drupal_resources_requests_cpu }}"
+            limits:
+              memory: "{{ drupal_resources_limits_memory }}"
+              cpu: "{{ drupal_resources_limits_cpu }}"
+          ports:
+            - containerPort: {{ drupal_ports_container_port | int }}
+          livenessProbe:
+            tcpSocket:
+{% if drupal_custom_liveness_probe_port  %}
+              port: {{ drupal_custom_liveness_probe_port | int }}
+{% else %}
+              port: {{ drupal_livenessProbe_tcpSocket_port | int }}
+{% endif %}
+            initialDelaySeconds: {{ drupal_livenessProbe_initialDelaySeconds | int }}
+            periodSeconds: {{ drupal_livenessProbe_periodSeconds | int }}
+            timeoutSeconds: {{ drupal_livenessProbe_timeoutSeconds | int }}
+          env:
+            - name: DRUPAL_LOCALE
+              value: "{{ drupal_locale }}"
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ ansible_operator_meta.name }}.drupal-secrets"
+                  key: db_database
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ ansible_operator_meta.name }}.drupal-secrets"
+                  key: db_user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ ansible_operator_meta.name }}.drupal-secrets"
+                  key: db_password
+            - name: DRUPAL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ ansible_operator_meta.name }}.drupal-secrets"
+                  key: user
+            - name: DRUPAL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ ansible_operator_meta.name }}.drupal-secrets"
+                  key: password
+            - name: K8S_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: K8S_DRUPAL_IMAGE
+              value: "{{ drupal_image }}"
+            - name: K8S_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: K8S_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: K8S_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: drupal-php-ini
+              mountPath: "{{ drupal_php_ini_file }}"
+              subPath: "{{ drupal_php_ini_subPath }}"
+            - mountPath: "{{ drupal_web_root }}/sites/default/files/"
+              name: drupal-files
+            - mountPath: "{{ drupal_web_root }}/sites/default/sync/"
+              name: sync-files
+            - mountPath: /pre-scripts
+              name: pre-scripts
+{% if fluentd is sameas true or fluentd == 'true' %}
+            - name: var-log-drupal
+              mountPath: "{{ fluentd_drupal_log_dir }}"
+{% endif %}
+            - name: drupal-settings
+              mountPath: "/scripts/settings.php"
+              subPath: settings.php
+{% if fluentd is sameas true or fluentd == 'true' %}
+        # Logging sidecar
+        - name: "{{ drupal_name }}-fluentd-logger"
+          image: "{{ fluentd_image  }}"
+          env:
+            - name: FLUENTD_CONF
+              value: "{{ fluentd_conf_value }}"
+          volumeMounts:
+            - name: var-log-drupal
+              mountPath: "{{ fluentd_drupal_log_dir }}"
+            - name: fluentd-config-volume
+              mountPath: /fluentd/etc
+{% endif %}
+      imagePullSecrets:
+        - name: "{{ drupal_image_reg_secret }}"
+      volumes:
+        - name: drupal-settings
+          configMap:
+            name: "{{ ansible_operator_meta.name }}-drupal-config"
+        - name: drupal-startup
+          configMap:
+            name: "{{ ansible_operator_meta.name }}-drupal-startup"
+        - name: drupal-init
+          configMap:
+            name: "{{ ansible_operator_meta.name }}-drupal-init"
+            defaultMode: 0744
+        - name: pre-scripts
+          emptyDir: {}
+        - name: drupal-files
+          persistentVolumeClaim:
+            claimName: "{{ ansible_operator_meta.name }}-files-pvc"
+        - name: drupal-php-ini
+          configMap:
+            name: "{{ ansible_operator_meta.name }}-drupal-php-ini"
+            defaultMode: 0744
+{% if fluentd is sameas true or fluentd == 'true' %}
+        - name: var-log-drupal
+          emptyDir: {}
+        - name: fluentd-config-volume
+          configMap:
+            name: fluentd-drupal-configmap
+            defaultMode: 0744
+{% endif %}
+        - name: sync-files
+          emptyDir: {}
+      priorityClassName: "{{ drupal_priority_class }}"

@@ -1,0 +1,17 @@
+---
+# Use the 'create api' subcommand to add watches to this file.
+- version: v1alpha2
+  group: ozzi.io
+  kind: Drupal
+  role: setup
+  # Only react on events – we are watching many resources
+  reconcilePeriod: "0"
+  # Dependent resources are managed by K8s
+  watchDependentResources: false
+#  finalizer:
+#    name: ozzi.io/backup-finalizer
+#    role: backup
+#    vars:
+#      take_final_backup: yes
+# --- Do not remove ---
+# +kubebuilder:scaffold:watch

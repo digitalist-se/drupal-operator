@@ -1,0 +1,8 @@
+domain: ozzi.io
+layout: ansible.sdk.operatorframework.io/v1
+projectName: drupal-operator
+resources:
+- group: drupal
+  kind: Drupal
+  version: v1alpha2
+version: 2-alpha
