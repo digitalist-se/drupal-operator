@@ -8,7 +8,7 @@ This started as inspired from <https://github.com/thom8/drupal-operator> and htt
 
 ## Prerequisites
 
-To work with this operator you need a Kubernetes cluster. Working with the examples in this operator you could use microk8s or minikube or something else for local development. Or you could have a production cluster - but please note that this is in alpha stage and not recommended for production use yet.
+To work with this operator you need a Kubernetes cluster. Working with the examples in this operator you could use microk8s or minikube or something else for local development.
 
 
 ## Install Operator
