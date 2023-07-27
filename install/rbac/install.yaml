@@ -1,0 +1,129 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: drupal-operator-leader-election-role
+  namespace: drupal
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: drupal-operator-manager-role
+  namespace: drupal
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/exec
+  - pods/log
+  - configmaps
+  - persistentvolumeclaims
+  - services
+  - persistentvolumes
+  - events
+  - secrets
+  - cronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - daemonsets
+  - replicasets
+  - statefulsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ozzi.io
+  resources:
+  - drupals
+  - drupals/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - get
+  - list
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: drupal-operator-leader-election-rolebinding
+  namespace: drupal
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: drupal-operator-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: drupal-operator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: drupal-operator-manager-rolebinding
+  namespace: drupal
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: drupal-operator-manager-role
+subjects:
+- kind: ServiceAccount
+  name: drupal-operator

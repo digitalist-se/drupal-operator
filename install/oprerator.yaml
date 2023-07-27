@@ -1,0 +1,39 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: drupal-operator-controller-manager
+spec:
+  securityContext:
+    runAsUser: 9000
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  template:
+    metadata:
+      labels:
+        control-plane: controller-manager
+    spec:
+      serviceAccountName: drupal-operator
+      initContainers: []
+      containers:
+      - image: ozziio/drupal-operator:3.1.2
+        name: manager
+        resources:
+          limits:
+            cpu: "2"
+            memory: 2048Mi
+          requests:
+            cpu: "0.1"
+            memory: 128Mi
+        env:
+          - name: ANSIBLE_GATHERING
+            value: explicit
+          - name: WATCH_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+      terminationGracePeriodSeconds: 10

@@ -1,102 +1,100 @@
-# Drupal Operator 
+# Drupal Operator by Digitalist Open Tech
 
+Drupal Operator is a Kubernetes operator that handles Drupal deployments.
+The operator is by default namespaced scoped, so it needs to exist in the same
+namespace as you want to deploy to.
 
+A simple example deployment looks like this:
 
-## Acknowledgements
-
-This started as inspired from <https://github.com/thom8/drupal-operator> and https://github.com/geerlingguy/drupal-operator
-
-## Prerequisites
-
-To work with this operator you need a Kubernetes cluster. Working with the examples in this operator you could use microk8s or minikube or something else for local development.
-
-
-## Install Operator
-
-Use the makefile to install the custom resource (CR) and the operator image, service accounts etc.
-
-The scope is cluster-wide, which means the operator is installed in its own namespace and has access to all other namespaces.
-
-```bash
-# Edit KUBECONFIG and VERSION.
-cp .env.example .env
-source .env
-make install
-make deploy IMG=$IMG
+```yaml
+apiVersion: ozzi.io/v1alpha2
+kind: Drupal
+metadata:
+  name: myexample-drupal
+spec:
+  tag: 8.7-apache # docker tag
+  drupal_image: drupal:{{ tag }}
+  files_accessmode: ReadWriteMany
+  drupal_extra_config: |
+    $conf['bar'] = 'foo';
+    $conf['foo'] = 'bar';
 ```
 
-## Important notice
+By default the operator uses a promtail sidecar for logs, and a configmap like this is needed:
 
-_Never_ run `make uninstall` on the live cluster. Removing the CRDs will trigger removal of _all_ resources created in the cluster (sites and databases).
-
-## Install Drupal
-
-If everything works out, you can install an example Drupal installation, check (the example)[./examples/drupal-example-crd.yaml]
-
-###  Minikube
-
-```bash
-kubectl apply -f examples/minikube-example.yaml
-```
-Get the name of the nodeport service: `kubectl get svc`.
-
-Now you could reach your deployment with: `minikube service example-drupal-nodeport --url`
-
-### Microk8s
-
-```bash
-microk8s.kubectl apply -f examples/micro8s-example.yaml
-```
-Now you could reach your deployment with the CLUSTER-IP: `microk8s.kubectl get service microk8s-nodeport`
-
-## Logs from the operator
-
-```bash
-kubectl logs -fn drupal-operator-controller-manager-xxxx -c manager
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-drupal
+data:
+  promtail.yaml: >
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+      log_level: "debug"
+    positions:
+      filename: /tmp/positions.yaml
+    clients: # Specify target
+      - url: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push #This should point to loki internal adress, or what ever used.
+    scrape_configs:
+      - job_name:  "drupal"
+        static_configs:
+          - targets:
+              - localhost
+            labels:
+              app: "drupal"
+              __path__: /var/log/drupal/*.log # Any file .log in the EmptyDir Volume.
 ```
 
-## Backups
+To disable promtail sidecar, you need to set: `drupal_promtail: false`, like:
 
-An S3 backup cronjob is built in, if you activate it, but for better control of backups, you could use something like this:
-For better control of backups, you could use something like https://blah.cloud/automation/using-velero-for-k8s-backup-and-restore-of-csi-volumes/
-
-
-# Developing the Drupal operator
-
-Currently using 1.13 of the operator-sdk.
-
-Follow the installation guide in the official docs
-for the (operator-sdk)[https://sdk.operatorframework.io/docs/building-operators/ansible/].
-
-You can develop locally with minikube or kind, or you can use a live cluster (read "Development Tips" in the official docs).
-
-
-```bash
-# Edit KUBECONFIG and VERSION.
-# Use .env.local.example for local usage with kind
-cp .env.example .env
-source .env
-make docker-build IMG=$IMG
-# Login to docker hub beforehand.
-make docker-push IMG=$IMG
-# Creates the CRDs
-make install
-# Creates the operator and all dependant resources
-make deploy IMG=$IMG
+```yaml
+apiVersion: ozzi.io/v1alpha2
+kind: Drupal
+metadata:
+  name: myexample-drupal
+spec:
+  tag: 8.7-apache # docker tag
+  drupal_image: drupal:{{ tag }}
+  drupal_promtail: false
+  files_accessmode: ReadWriteMany
+  drupal_extra_config: |
+    $conf['bar'] = 'foo';
+    $conf['foo'] = 'bar';
 ```
 
-## Testing with molecule
+
+
+For all config variables, see the [variables file](variables.md).
+
+## Installation
+
+### Service account
+
+The operator needs a serviceaccount to work, start with creating that:
 
 ```bash
-# Run a whole test cycle: create - test - removing
-OPERATOR_IMAGE=${OPERATOR_IMAGE} TEST_OPERATOR_NAMESPACE=molecule-test molecule test
+kubectl create sa drupal-operator
+```
 
-# Run a test cycle, without destroying everything after testing: create - test
-OPERATOR_IMAGE=${OPERATOR_IMAGE} TEST_OPERATOR_NAMESPACE=molecule-test molecule converge
+### Install  CRD
 
-# Iterate on a test, after having run "converge"
-OPERATOR_IMAGE=${OPERATOR_IMAGE} TEST_OPERATOR_NAMESPACE=molecule-test molecule verify
+```bash
+kubectl apply -f install/crd/install.yaml
+```
 
-# Remove everything.
-OPERATOR_IMAGE=${OPERATOR_IMAGE} TEST_OPERATOR_NAMESPACE=molecule-test molecule destroy
+### Install RBAC
+
+Edit the file, so the namespace matches the namespace you want to deploy
+the operator to. Namespace is set to drupal.
+
+```bash
+kubectl apply -f install/rbac/install.yaml
+```
+
+### Install the operator itself
+
+```bash
+kubectl apply -f install/operator.yaml
 ```
