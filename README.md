@@ -12,7 +12,7 @@ kind: Drupal
 metadata:
   name: myexample-drupal
 spec:
-  tag: 8.7-apache # docker tag
+  tag: 9.5.10-php8.2-apache # docker tag
   drupal_image: drupal:{{ tag }}
   files_accessmode: ReadWriteMany
   drupal_extra_config: |
@@ -55,7 +55,7 @@ kind: Drupal
 metadata:
   name: myexample-drupal
 spec:
-  tag: 8.7-apache # docker tag
+  tag: 9.5.10-php8.2-apache # docker tag
   drupal_image: drupal:{{ tag }}
   drupal_promtail: false
   files_accessmode: ReadWriteMany
