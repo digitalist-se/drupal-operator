@@ -20,7 +20,7 @@ spec:
       serviceAccountName: drupal-operator
       initContainers: []
       containers:
-      - image: ozziio/drupal-operator:3.1.2
+      - image: ozziio/drupal-operator:3.1.3
         name: manager
         resources:
           limits:
