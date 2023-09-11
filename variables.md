@@ -4,7 +4,7 @@
 
 |key  |default   |usage   |note   |
 |---|---|---|---|
-|drupal_operator_image: |ozziio/drupal-operator:3.1.2| | |
+|drupal_operator_image: |ozziio/drupal-operator:3.1.3| | |
 |busybox_image: |busybox:1.35.0| | |
 |drupal_run_as_user: |1000| | |
 |drupal_run_as_group: |2000| | |
